@@ -1,0 +1,225 @@
+/* YouTube Controller Overlay - Apple Style */
+
+#yt-controller-overlay {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2147483647;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+  pointer-events: auto;
+  animation: yt-slide-down 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes yt-slide-down {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.yt-controller-bar {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border-radius: 20px;
+  padding: 12px 20px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12),
+              0 2px 8px rgba(0, 0, 0, 0.08),
+              inset 0 1px 1px rgba(255, 255, 255, 0.9),
+              inset 0 -1px 1px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  min-width: 600px;
+  max-width: 800px;
+}
+
+.yt-controller-content {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+/* Now Playing Section */
+.yt-now-playing {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 0 0 auto;
+}
+
+.yt-thumbnail {
+  width: 60px;
+  height: 45px;
+  border-radius: 10px;
+  object-fit: cover;
+  background: rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.yt-video-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 200px;
+}
+
+.yt-video-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1d1d1f;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.3;
+}
+
+.yt-video-channel {
+  font-size: 11px;
+  color: #6e6e73;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Controls Section */
+.yt-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 auto;
+  justify-content: center;
+}
+
+.yt-control-btn {
+  background: rgba(0, 0, 0, 0.04);
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  color: #1d1d1f;
+  position: relative;
+  backdrop-filter: blur(10px);
+}
+
+.yt-control-btn:hover {
+  background: rgba(0, 0, 0, 0.08);
+  transform: scale(1.05);
+}
+
+.yt-control-btn:active {
+  transform: scale(0.95);
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.yt-control-btn.yt-primary {
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, #007AFF 0%, #0051D5 100%);
+  color: white;
+  box-shadow: 0 4px 16px rgba(0, 122, 255, 0.3);
+}
+
+.yt-control-btn.yt-primary:hover {
+  background: linear-gradient(135deg, #0051D5 0%, #003DA5 100%);
+  box-shadow: 0 6px 20px rgba(0, 122, 255, 0.4);
+}
+
+.yt-control-btn.yt-small {
+  width: 36px;
+  height: 36px;
+}
+
+.yt-control-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.yt-control-btn.yt-primary svg {
+  width: 24px;
+  height: 24px;
+}
+
+.yt-control-btn.yt-small svg {
+  width: 18px;
+  height: 18px;
+}
+
+.yt-btn-label {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  font-size: 8px;
+  font-weight: 700;
+  color: inherit;
+}
+
+/* Right Section */
+.yt-right-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 0 0 auto;
+}
+
+.yt-time-display {
+  font-size: 12px;
+  font-weight: 500;
+  color: #1d1d1f;
+  font-variant-numeric: tabular-nums;
+  min-width: 80px;
+  text-align: center;
+}
+
+/* Volume Controls */
+.yt-volume-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.yt-volume-bar {
+  width: 60px;
+  height: 4px;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 2px;
+  position: relative;
+  overflow: hidden;
+}
+
+.yt-volume-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #007AFF 0%, #0051D5 100%);
+  border-radius: 2px;
+  transition: width 0.2s ease;
+}
+
+.yt-control-btn.yt-close {
+  background: rgba(255, 59, 48, 0.1);
+  color: #FF3B30;
+}
+
+.yt-control-btn.yt-close:hover {
+  background: rgba(255, 59, 48, 0.2);
+}
+
+/* Hidden state */
+#yt-controller-overlay.yt-hidden {
+  animation: yt-slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes yt-slide-up {
+  to {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px);
+    pointer-events: none;
+  }
+}
