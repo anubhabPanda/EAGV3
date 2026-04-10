@@ -5,7 +5,7 @@
 }
 
 body {
-  width: 380px;
+  width: 190px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   background: #0f0f0f;
   color: #fff;
@@ -21,25 +21,25 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 60px 40px;
+  padding: 30px 20px;
   text-align: center;
 }
 
 .no-video-icon {
-  font-size: 48px;
-  margin-bottom: 16px;
+  font-size: 24px;
+  margin-bottom: 8px;
   opacity: 0.5;
 }
 
 .no-video p {
-  font-size: 16px;
+  font-size: 12px;
   font-weight: 500;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   color: #fff;
 }
 
 .no-video small {
-  font-size: 13px;
+  font-size: 10px;
   color: #aaa;
 }
 
@@ -52,8 +52,11 @@ body {
 /* Video Preview */
 .video-preview {
   position: relative;
-  width: 100%;
+  width: 30%;
+  margin: 8px auto 0;
   background: #000;
+  border-radius: 4px;
+  overflow: hidden;
 }
 
 .video-preview img {
@@ -65,12 +68,12 @@ body {
 }
 
 .video-title {
-  padding: 12px 16px;
-  font-size: 14px;
+  padding: 4px 6px;
+  font-size: 8px;
   font-weight: 500;
   background: linear-gradient(to bottom, rgba(0,0,0,0.8), rgba(0,0,0,0.95));
-  line-height: 1.4;
-  max-height: 60px;
+  line-height: 1.2;
+  max-height: 24px;
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
@@ -80,16 +83,24 @@ body {
 
 /* Controls Section */
 .controls {
-  padding: 16px;
+  padding: 8px;
   background: #0f0f0f;
+}
+
+.video-nav-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 6px;
 }
 
 .main-controls {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 16px;
+  gap: 4px;
+  margin-bottom: 8px;
 }
 
 .control-btn {
@@ -97,7 +108,7 @@ body {
   border: none;
   color: #fff;
   cursor: pointer;
-  padding: 8px;
+  padding: 4px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -113,12 +124,22 @@ body {
   transform: scale(0.95);
 }
 
+.control-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
 .play-pause-btn {
   background: #fff;
   color: #000;
-  width: 56px;
-  height: 56px;
-  margin: 0 8px;
+  width: 32px;
+  height: 32px;
+  margin: 0 4px;
+}
+
+.play-pause-btn svg {
+  width: 20px;
+  height: 20px;
 }
 
 .play-pause-btn:hover {
@@ -127,21 +148,21 @@ body {
 
 /* Progress Bar */
 .progress-container {
-  margin-bottom: 16px;
+  margin-bottom: 8px;
 }
 
 .time-display {
   display: flex;
   justify-content: space-between;
-  font-size: 12px;
+  font-size: 9px;
   color: #aaa;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   font-variant-numeric: tabular-nums;
 }
 
 #progress-bar {
   width: 100%;
-  height: 4px;
+  height: 3px;
   -webkit-appearance: none;
   appearance: none;
   background: #3a3a3a;
@@ -153,8 +174,8 @@ body {
 #progress-bar::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 14px;
-  height: 14px;
+  width: 10px;
+  height: 10px;
   background: #fff;
   border-radius: 50%;
   cursor: pointer;
@@ -166,8 +187,8 @@ body {
 }
 
 #progress-bar::-moz-range-thumb {
-  width: 14px;
-  height: 14px;
+  width: 10px;
+  height: 10px;
   background: #fff;
   border: none;
   border-radius: 50%;
@@ -178,7 +199,7 @@ body {
 .volume-control {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 4px;
 }
 
 .control-btn-small {
@@ -186,7 +207,7 @@ body {
   border: none;
   color: #fff;
   cursor: pointer;
-  padding: 6px;
+  padding: 3px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -195,13 +216,18 @@ body {
   flex-shrink: 0;
 }
 
+.control-btn-small svg {
+  width: 14px;
+  height: 14px;
+}
+
 .control-btn-small:hover {
   background: rgba(255, 255, 255, 0.1);
 }
 
 #volume-slider {
   flex: 1;
-  height: 4px;
+  height: 3px;
   -webkit-appearance: none;
   appearance: none;
   background: #3a3a3a;
@@ -213,16 +239,16 @@ body {
 #volume-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 12px;
-  height: 12px;
+  width: 9px;
+  height: 9px;
   background: #fff;
   border-radius: 50%;
   cursor: pointer;
 }
 
 #volume-slider::-moz-range-thumb {
-  width: 12px;
-  height: 12px;
+  width: 9px;
+  height: 9px;
   background: #fff;
   border: none;
   border-radius: 50%;
@@ -231,18 +257,18 @@ body {
 
 /* Actions */
 .actions {
-  padding: 0 16px 16px;
+  padding: 0 8px 8px;
   background: #0f0f0f;
 }
 
 .action-btn {
   width: 100%;
-  padding: 10px;
+  padding: 6px;
   background: #272727;
   color: #fff;
   border: none;
-  border-radius: 6px;
-  font-size: 14px;
+  border-radius: 4px;
+  font-size: 9px;
   font-weight: 500;
   cursor: pointer;
   transition: background 0.2s;
