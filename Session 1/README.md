@@ -2,6 +2,10 @@
 
 A Chrome extension that lets you control YouTube playback from any tab with a beautiful control panel featuring video preview and all standard YouTube controls.
 
+## DEMO LINK
+
+[Youtube Controller](https://www.youtube.com/watch?v=8Kbl9H40Ktw)
+
 ## Features
 
 - 🎬 **Video Preview** - See the thumbnail and title of the currently playing video
