@@ -1,41 +1,37 @@
 {
   "manifest_version": 3,
-  "name": "YouTube Controller",
-  "version": "1.0",
-  "description": "Control YouTube playback from any tab",
+  "name": "Youtube Controller",
+  "version": "1.0.0",
+  "description": "Control YouTube playback from any tab with video preview and controls",
   "permissions": [
     "tabs",
-    "activeTab"
+    "scripting",
+    "storage"
   ],
   "host_permissions": [
-    "https://www.youtube.com/*"
+    "*://*.youtube.com/*"
   ],
-  "action": {
-    "default_popup": "popup.html",
-    "default_title": "YouTube Controller",
-    "default_icon": {
-      "16": "icon16.png",
-      "48": "icon48.png",
-      "128": "icon128.png"
-    }
-  },
   "background": {
     "service_worker": "background.js"
   },
   "content_scripts": [
     {
-      "matches": [
-        "https://www.youtube.com/*",
-        "https://youtube.com/*"
-      ],
+      "matches": ["*://*.youtube.com/*"],
       "js": ["content.js"],
-      "run_at": "document_end",
-      "all_frames": false
+      "run_at": "document_idle"
     }
   ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
   "icons": {
-    "16": "icon16.png",
-    "48": "icon48.png",
-    "128": "icon128.png"
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
   }
 }
