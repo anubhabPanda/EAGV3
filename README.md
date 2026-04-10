@@ -1,6 +1,6 @@
-# EAG3 - Extension and Automation Gallery 3
+# EAGV3
 
-This repository contains various browser extensions, automation scripts, and related projects.
+This repository contains various AI Projects done using Agents
 
 ## Table of Contents
 
