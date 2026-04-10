@@ -1,0 +1,41 @@
+{
+  "manifest_version": 3,
+  "name": "YouTube Controller",
+  "version": "1.0",
+  "description": "Control YouTube playback from any tab",
+  "permissions": [
+    "tabs",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "https://www.youtube.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "YouTube Controller",
+    "default_icon": {
+      "16": "icon16.png",
+      "48": "icon48.png",
+      "128": "icon128.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.youtube.com/*",
+        "https://youtube.com/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_end",
+      "all_frames": false
+    }
+  ],
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  }
+}
