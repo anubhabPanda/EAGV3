@@ -19,6 +19,10 @@ const muteBtn = document.getElementById('mute-btn');
 const volumeIcon = document.getElementById('volume-icon');
 const muteIcon = document.getElementById('mute-icon');
 const volumeSlider = document.getElementById('volume-slider');
+const volumeUpBtn = document.getElementById('volume-up');
+const volumeDownBtn = document.getElementById('volume-down');
+const prevVideoBtn = document.getElementById('prev-video');
+const nextVideoBtn = document.getElementById('next-video');
 const openVideoBtn = document.getElementById('open-video');
 
 // Format time in seconds to MM:SS
@@ -146,6 +150,32 @@ volumeSlider.addEventListener('input', async () => {
   const volume = volumeSlider.value / 100;
   await sendCommand({ type: 'VOLUME', volume: volume });
   setTimeout(refreshState, 100);
+});
+
+volumeUpBtn.addEventListener('click', async () => {
+  if (currentState) {
+    const newVolume = Math.min(currentState.volume + 0.1, 1);
+    await sendCommand({ type: 'VOLUME', volume: newVolume });
+    setTimeout(refreshState, 100);
+  }
+});
+
+volumeDownBtn.addEventListener('click', async () => {
+  if (currentState) {
+    const newVolume = Math.max(currentState.volume - 0.1, 0);
+    await sendCommand({ type: 'VOLUME', volume: newVolume });
+    setTimeout(refreshState, 100);
+  }
+});
+
+prevVideoBtn.addEventListener('click', async () => {
+  await sendCommand({ type: 'PREV_VIDEO' });
+  setTimeout(refreshState, 500);
+});
+
+nextVideoBtn.addEventListener('click', async () => {
+  await sendCommand({ type: 'NEXT_VIDEO' });
+  setTimeout(refreshState, 500);
 });
 
 openVideoBtn.addEventListener('click', () => {

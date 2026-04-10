@@ -112,7 +112,31 @@
       case 'GET_STATE':
         sendResponse({ success: true, state: getVideoState() });
         break;
-      
+
+      case 'NEXT_VIDEO':
+        // Click the next button on YouTube
+        const nextBtn = document.querySelector('.ytp-next-button');
+        if (nextBtn) {
+          nextBtn.click();
+          sendResponse({ success: true });
+        } else {
+          sendResponse({ success: false, error: 'Next button not found' });
+        }
+        break;
+
+      case 'PREV_VIDEO':
+        // Click the previous button on YouTube or restart current video
+        const prevBtn = document.querySelector('.ytp-prev-button');
+        if (prevBtn) {
+          prevBtn.click();
+          sendResponse({ success: true });
+        } else {
+          // If no prev button, restart the current video
+          video.currentTime = 0;
+          sendResponse({ success: true });
+        }
+        break;
+
       default:
         sendResponse({ success: false, error: 'Unknown command' });
     }
