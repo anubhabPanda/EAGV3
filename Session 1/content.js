@@ -1,268 +1,163 @@
-// Content script for YouTube control
-console.log('YouTube Controller: Content script loaded');
+// Content script that runs on YouTube pages
+(function() {
+  'use strict';
 
-// Wait for video player to be available
-function waitForVideo(maxAttempts = 50) {
-  return new Promise((resolve, reject) => {
-    let attempts = 0;
-    const checkInterval = setInterval(() => {
-      const video = document.querySelector('video');
-      if (video) {
-        clearInterval(checkInterval);
-        resolve(video);
-      } else if (++attempts >= maxAttempts) {
-        clearInterval(checkInterval);
-        reject(new Error('Video player not found'));
-      }
-    }, 100);
+  let video = null;
+  let updateInterval = null;
+
+  // Function to get the video element
+  function getVideo() {
+    return document.querySelector('video');
+  }
+
+  // Function to get video state
+  function getVideoState() {
+    video = getVideo();
+    
+    if (!video) {
+      return { hasVideo: false };
+    }
+
+    // Get thumbnail from video or page
+    let thumbnail = null;
+    const metaThumb = document.querySelector('meta[property="og:image"]');
+    if (metaThumb) {
+      thumbnail = metaThumb.content;
+    }
+
+    // Get video title
+    let title = document.title.replace(' - YouTube', '');
+    
+    return {
+      hasVideo: true,
+      paused: video.paused,
+      currentTime: video.currentTime,
+      duration: video.duration,
+      volume: video.volume,
+      muted: video.muted,
+      thumbnail: thumbnail,
+      title: title,
+      url: window.location.href
+    };
+  }
+
+  // Send video state to background
+  function sendVideoState() {
+    const state = getVideoState();
+    chrome.runtime.sendMessage({
+      type: 'VIDEO_STATE',
+      state: state
+    });
+  }
+
+  // Listen for commands from popup
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    video = getVideo();
+    
+    if (!video) {
+      sendResponse({ success: false, error: 'No video found' });
+      return;
+    }
+
+    switch (message.type) {
+      case 'PLAY':
+        video.play();
+        sendResponse({ success: true });
+        break;
+      
+      case 'PAUSE':
+        video.pause();
+        sendResponse({ success: true });
+        break;
+      
+      case 'TOGGLE_PLAY':
+        if (video.paused) {
+          video.play();
+        } else {
+          video.pause();
+        }
+        sendResponse({ success: true });
+        break;
+      
+      case 'SEEK':
+        video.currentTime = message.time;
+        sendResponse({ success: true });
+        break;
+      
+      case 'VOLUME':
+        video.volume = message.volume;
+        sendResponse({ success: true });
+        break;
+      
+      case 'MUTE':
+        video.muted = true;
+        sendResponse({ success: true });
+        break;
+      
+      case 'UNMUTE':
+        video.muted = false;
+        sendResponse({ success: true });
+        break;
+      
+      case 'SKIP_FORWARD':
+        video.currentTime = Math.min(video.currentTime + 10, video.duration);
+        sendResponse({ success: true });
+        break;
+      
+      case 'SKIP_BACKWARD':
+        video.currentTime = Math.max(video.currentTime - 10, 0);
+        sendResponse({ success: true });
+        break;
+      
+      case 'GET_STATE':
+        sendResponse({ success: true, state: getVideoState() });
+        break;
+      
+      default:
+        sendResponse({ success: false, error: 'Unknown command' });
+    }
+    
+    return true;
   });
-}
 
-// Get the YouTube video player
-function getVideoPlayer() {
-  return document.querySelector('video');
-}
-
-// Get YouTube player controls
-function getPlayerButton(selector) {
-  return document.querySelector(selector);
-}
-
-// Get current video info
-function getVideoInfo() {
-  const video = getVideoPlayer();
-  if (!video) return null;
-
-  // Try multiple selectors for video title
-  let title = 'Unknown';
-  const titleSelectors = [
-    'h1.ytd-watch-metadata yt-formatted-string',
-    'h1.title yt-formatted-string',
-    'h1 yt-formatted-string.ytd-watch-metadata',
-    'yt-formatted-string.style-scope.ytd-watch-metadata'
-  ];
-
-  for (const selector of titleSelectors) {
-    const titleElement = document.querySelector(selector);
-    if (titleElement && titleElement.textContent) {
-      title = titleElement.textContent.trim();
-      break;
+  // Start monitoring video
+  function startMonitoring() {
+    // Send initial state
+    sendVideoState();
+    
+    // Send updates periodically
+    if (updateInterval) {
+      clearInterval(updateInterval);
     }
-  }
-
-  // Get thumbnail
-  let thumbnail = '';
-  const thumbnailElement = document.querySelector('link[rel="image_src"]');
-  if (thumbnailElement) {
-    thumbnail = thumbnailElement.href;
-  } else {
-    // Fallback: extract video ID and construct thumbnail URL
-    const videoId = new URLSearchParams(window.location.search).get('v');
-    if (videoId) {
-      thumbnail = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
-    }
-  }
-
-  // Get channel name
-  let channel = 'Unknown';
-  const channelSelectors = [
-    'ytd-channel-name yt-formatted-string a',
-    'ytd-channel-name a',
-    '#channel-name a'
-  ];
-
-  for (const selector of channelSelectors) {
-    const channelElement = document.querySelector(selector);
-    if (channelElement && channelElement.textContent) {
-      channel = channelElement.textContent.trim();
-      break;
-    }
-  }
-
-  return {
-    title,
-    channel,
-    thumbnail,
-    duration: video.duration,
-    currentTime: video.currentTime,
-    isPlaying: !video.paused,
-    volume: Math.round(video.volume * 100)
-  };
-}
-
-// Handle playback commands
-function handlePlayPause() {
-  const video = getVideoPlayer();
-  if (!video) return { status: 'No video found', isPlaying: false };
-
-  if (video.paused) {
-    video.play();
-    return { status: 'Playing', isPlaying: true };
-  } else {
-    video.pause();
-    return { status: 'Paused', isPlaying: false };
-  }
-}
-
-function handleNext() {
-  const nextButton = getPlayerButton('.ytp-next-button');
-  if (nextButton) {
-    nextButton.click();
-    // Wait a bit for new video to load
-    setTimeout(() => {
-      const videoInfo = getVideoInfo();
-      if (videoInfo) {
-        chrome.runtime.sendMessage({ action: 'videoChanged', videoInfo });
+    
+    updateInterval = setInterval(() => {
+      video = getVideo();
+      if (video && !video.paused) {
+        sendVideoState();
       }
     }, 1000);
-    return { status: 'Next video' };
+
+    // Listen for video events
+    video = getVideo();
+    if (video) {
+      video.addEventListener('play', sendVideoState);
+      video.addEventListener('pause', sendVideoState);
+      video.addEventListener('volumechange', sendVideoState);
+      video.addEventListener('seeked', sendVideoState);
+    }
   }
-  return { status: 'Next button not found' };
-}
 
-function handlePrevious() {
-  const video = getVideoPlayer();
-  if (!video) return { status: 'No video found' };
-
-  // If more than 3 seconds in, restart video. Otherwise try to go to previous
-  if (video.currentTime > 3) {
-    video.currentTime = 0;
-    return { status: 'Restarted video' };
+  // Initialize when page loads
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', startMonitoring);
   } else {
-    const prevButton = getPlayerButton('.ytp-prev-button');
-    if (prevButton) {
-      prevButton.click();
-      // Wait a bit for new video to load
-      setTimeout(() => {
-        const videoInfo = getVideoInfo();
-        if (videoInfo) {
-          chrome.runtime.sendMessage({ action: 'videoChanged', videoInfo });
-        }
-      }, 1000);
-      return { status: 'Previous video' };
+    startMonitoring();
+  }
+
+  // Re-check for video element periodically (for SPAs like YouTube)
+  setInterval(() => {
+    if (!video || !document.contains(video)) {
+      startMonitoring();
     }
-    video.currentTime = 0;
-    return { status: 'Restarted video' };
-  }
-}
-
-function handleVolumeUp() {
-  const video = getVideoPlayer();
-  if (!video) return { status: 'No video found' };
-
-  const newVolume = Math.min(1, video.volume + 0.1);
-  video.volume = newVolume;
-  return { status: `Volume: ${Math.round(newVolume * 100)}%` };
-}
-
-function handleVolumeDown() {
-  const video = getVideoPlayer();
-  if (!video) return { status: 'No video found' };
-
-  const newVolume = Math.max(0, video.volume - 0.1);
-  video.volume = newVolume;
-  return { status: `Volume: ${Math.round(newVolume * 100)}%` };
-}
-
-function handleForward() {
-  const video = getVideoPlayer();
-  if (!video) return { status: 'No video found' };
-
-  video.currentTime = Math.min(video.duration, video.currentTime + 10);
-  return { status: 'Forward 10s' };
-}
-
-function handleRewind() {
-  const video = getVideoPlayer();
-  if (!video) return { status: 'No video found' };
-
-  video.currentTime = Math.max(0, video.currentTime - 10);
-  return { status: 'Rewind 10s' };
-}
-
-function getPlaybackState() {
-  const video = getVideoPlayer();
-  if (!video) return { isPlaying: false, videoInfo: null };
-
-  const videoInfo = getVideoInfo();
-  return {
-    isPlaying: !video.paused,
-    videoInfo: videoInfo
-  };
-}
-
-// Listen for messages from popup or other tabs (via background)
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  console.log('Content script received message:', request);
-
-  // Handle ping immediately
-  if (request.action === 'ping') {
-    sendResponse({ pong: true });
-    return false;
-  }
-
-  let response;
-
-  try {
-    switch (request.action) {
-      case 'playPause':
-        response = handlePlayPause();
-        break;
-      case 'next':
-        response = handleNext();
-        break;
-      case 'previous':
-        response = handlePrevious();
-        break;
-      case 'volumeUp':
-        response = handleVolumeUp();
-        break;
-      case 'volumeDown':
-        response = handleVolumeDown();
-        break;
-      case 'forward':
-        response = handleForward();
-        break;
-      case 'rewind':
-        response = handleRewind();
-        break;
-      case 'getPlaybackState':
-        response = getPlaybackState();
-        break;
-      case 'getVideoInfo':
-        const videoInfo = getVideoInfo();
-        const video = getVideoPlayer();
-        response = {
-          videoInfo: videoInfo,
-          isPlaying: video ? !video.paused : false
-        };
-        break;
-      default:
-        response = { status: 'Unknown command' };
-    }
-  } catch (error) {
-    console.error('Error handling command:', error);
-    response = { status: 'Error: ' + error.message };
-  }
-
-  console.log('Sending response:', response);
-
-  // Send response immediately and synchronously
-  try {
-    sendResponse(response);
-  } catch (e) {
-    console.error('Error sending response:', e);
-  }
-
-  return false; // Synchronous response
-});
-
-// Notify that content script is ready
-console.log('YouTube Controller: Ready to receive commands');
-
-// Wait for video and send initial state
-waitForVideo().then(() => {
-  console.log('YouTube Controller: Video player detected');
-}).catch(err => {
-  console.log('YouTube Controller: No video player found yet');
-});
+  }, 2000);
+})();

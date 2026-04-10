@@ -1,53 +1,27 @@
-// Popup script for YouTube Controller
-console.log('Popup loaded');
+// Popup script to control YouTube playback
+let currentState = null;
+let isDraggingProgress = false;
 
-// Get DOM elements
-const statusElement = document.getElementById('status');
-const nowPlayingElement = document.getElementById('nowPlaying');
-const videoThumbnailElement = document.getElementById('videoThumbnail');
-const videoTitleElement = document.getElementById('videoTitle');
-const videoChannelElement = document.getElementById('videoChannel');
-const videoTimeElement = document.getElementById('videoTime');
-const playIcon = document.getElementById('playIcon');
-const pauseIcon = document.getElementById('pauseIcon');
+// DOM Elements
+const noVideoDiv = document.getElementById('no-video');
+const videoControlsDiv = document.getElementById('video-controls');
+const thumbnail = document.getElementById('thumbnail');
+const videoTitle = document.getElementById('video-title');
+const playPauseBtn = document.getElementById('play-pause');
+const playIcon = document.getElementById('play-icon');
+const pauseIcon = document.getElementById('pause-icon');
+const skipBackBtn = document.getElementById('skip-back');
+const skipForwardBtn = document.getElementById('skip-forward');
+const progressBar = document.getElementById('progress-bar');
+const currentTimeSpan = document.getElementById('current-time');
+const durationSpan = document.getElementById('duration');
+const muteBtn = document.getElementById('mute-btn');
+const volumeIcon = document.getElementById('volume-icon');
+const muteIcon = document.getElementById('mute-icon');
+const volumeSlider = document.getElementById('volume-slider');
+const openVideoBtn = document.getElementById('open-video');
 
-let currentYouTubeTab = null;
-let updateInterval = null;
-
-// Find YouTube tab
-async function findYouTubeTab() {
-  const tabs = await chrome.tabs.query({ url: ['https://www.youtube.com/watch*', 'https://youtube.com/watch*'] });
-  return tabs.length > 0 ? tabs[0] : null;
-}
-
-// Send command to YouTube tab
-async function sendCommand(action) {
-  if (!currentYouTubeTab) {
-    currentYouTubeTab = await findYouTubeTab();
-    if (!currentYouTubeTab) {
-      updateStatus('No YouTube video found', 'error');
-      return null;
-    }
-  }
-  
-  try {
-    const response = await chrome.tabs.sendMessage(currentYouTubeTab.id, { action });
-    return response;
-  } catch (error) {
-    console.error('Error sending command:', error);
-    updateStatus('Error: Refresh YouTube page', 'error');
-    currentYouTubeTab = null;
-    return null;
-  }
-}
-
-// Update status message
-function updateStatus(message, type = 'success') {
-  statusElement.textContent = message;
-  statusElement.className = `status ${type}`;
-}
-
-// Format time (seconds to MM:SS)
+// Format time in seconds to MM:SS
 function formatTime(seconds) {
   if (!seconds || isNaN(seconds)) return '0:00';
   const mins = Math.floor(seconds / 60);
@@ -55,126 +29,131 @@ function formatTime(seconds) {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
-// Update video info
-async function updateVideoInfo() {
-  const response = await sendCommand('getPlaybackState');
-  
-  if (response && response.videoInfo) {
-    const { videoInfo, isPlaying, currentTime, duration, volume } = response;
-    
-    // Show now playing section
-    nowPlayingElement.style.display = 'flex';
-    
-    // Update thumbnail
-    if (videoInfo.thumbnail) {
-      videoThumbnailElement.src = videoInfo.thumbnail;
-    }
-    
-    // Update title
-    if (videoInfo.title) {
-      videoTitleElement.textContent = videoInfo.title;
-    }
-    
-    // Update channel
-    if (videoInfo.channel) {
-      videoChannelElement.textContent = videoInfo.channel;
-    }
-    
-    // Update time
-    videoTimeElement.textContent = `${formatTime(currentTime)} / ${formatTime(duration)}`;
-    
-    // Update play/pause icon
-    if (isPlaying) {
-      playIcon.style.display = 'none';
-      pauseIcon.style.display = 'block';
-    } else {
-      playIcon.style.display = 'block';
-      pauseIcon.style.display = 'none';
-    }
-    
-    updateStatus('Ready', 'success');
-  }
+// Send command to background
+function sendCommand(command) {
+  return new Promise((resolve) => {
+    chrome.runtime.sendMessage({
+      type: 'SEND_COMMAND',
+      command: command
+    }, (response) => {
+      resolve(response);
+    });
+  });
 }
 
-// Button click handlers
-document.getElementById('playPause').addEventListener('click', async () => {
-  const response = await sendCommand('playPause');
-  if (response) {
-    updateStatus(response.status);
-    updateVideoInfo();
-  }
-});
-
-document.getElementById('next').addEventListener('click', async () => {
-  const response = await sendCommand('next');
-  if (response) {
-    updateStatus(response.status);
-    setTimeout(updateVideoInfo, 1000);
-  }
-});
-
-document.getElementById('previous').addEventListener('click', async () => {
-  const response = await sendCommand('previous');
-  if (response) {
-    updateStatus(response.status);
-    updateVideoInfo();
-  }
-});
-
-document.getElementById('volumeUp').addEventListener('click', async () => {
-  const response = await sendCommand('volumeUp');
-  if (response) {
-    updateStatus(response.status);
-  }
-});
-
-document.getElementById('volumeDown').addEventListener('click', async () => {
-  const response = await sendCommand('volumeDown');
-  if (response) {
-    updateStatus(response.status);
-  }
-});
-
-document.getElementById('forward').addEventListener('click', async () => {
-  const response = await sendCommand('forward');
-  if (response) {
-    updateStatus(response.status);
-    updateVideoInfo();
-  }
-});
-
-document.getElementById('rewind').addEventListener('click', async () => {
-  const response = await sendCommand('rewind');
-  if (response) {
-    updateStatus(response.status);
-    updateVideoInfo();
-  }
-});
-
-// Initialize
-async function init() {
-  console.log('Checking YouTube status...');
+// Update UI with current state
+function updateUI(state) {
+  currentState = state;
   
-  // Find YouTube tab
-  currentYouTubeTab = await findYouTubeTab();
+  if (!state.hasVideo) {
+    noVideoDiv.style.display = 'flex';
+    videoControlsDiv.style.display = 'none';
+    return;
+  }
   
-  if (currentYouTubeTab) {
-    updateStatus('Connecting...');
-    await updateVideoInfo();
-    
-    // Update every 2 seconds
-    updateInterval = setInterval(updateVideoInfo, 2000);
+  noVideoDiv.style.display = 'none';
+  videoControlsDiv.style.display = 'block';
+  
+  // Update thumbnail and title
+  if (state.thumbnail) {
+    thumbnail.src = state.thumbnail;
+  }
+  videoTitle.textContent = state.title || 'YouTube Video';
+  
+  // Update play/pause button
+  if (state.paused) {
+    playIcon.style.display = 'block';
+    pauseIcon.style.display = 'none';
   } else {
-    updateStatus('No YouTube video found', 'error');
+    playIcon.style.display = 'none';
+    pauseIcon.style.display = 'block';
+  }
+  
+  // Update progress bar
+  if (!isDraggingProgress) {
+    const progress = (state.currentTime / state.duration) * 100 || 0;
+    progressBar.value = progress;
+    currentTimeSpan.textContent = formatTime(state.currentTime);
+    durationSpan.textContent = formatTime(state.duration);
+  }
+  
+  // Update volume
+  volumeSlider.value = state.volume * 100;
+  if (state.muted || state.volume === 0) {
+    volumeIcon.style.display = 'none';
+    muteIcon.style.display = 'block';
+  } else {
+    volumeIcon.style.display = 'block';
+    muteIcon.style.display = 'none';
   }
 }
 
-// Start
-init();
+// Get current state from background
+function refreshState() {
+  chrome.runtime.sendMessage({ type: 'GET_CURRENT_STATE' }, (response) => {
+    if (response && response.state) {
+      updateUI(response.state);
+    }
+  });
+}
 
-// Clean up on popup close
-window.addEventListener('unload', () => {
-  if (updateInterval) {
-    clearInterval(updateInterval);
+// Event Listeners
+playPauseBtn.addEventListener('click', async () => {
+  await sendCommand({ type: 'TOGGLE_PLAY' });
+  setTimeout(refreshState, 100);
+});
+
+skipBackBtn.addEventListener('click', async () => {
+  await sendCommand({ type: 'SKIP_BACKWARD' });
+  setTimeout(refreshState, 100);
+});
+
+skipForwardBtn.addEventListener('click', async () => {
+  await sendCommand({ type: 'SKIP_FORWARD' });
+  setTimeout(refreshState, 100);
+});
+
+progressBar.addEventListener('mousedown', () => {
+  isDraggingProgress = true;
+});
+
+progressBar.addEventListener('mouseup', async () => {
+  isDraggingProgress = false;
+  if (currentState && currentState.duration) {
+    const newTime = (progressBar.value / 100) * currentState.duration;
+    await sendCommand({ type: 'SEEK', time: newTime });
+    setTimeout(refreshState, 100);
   }
 });
+
+progressBar.addEventListener('input', () => {
+  if (currentState && currentState.duration) {
+    const newTime = (progressBar.value / 100) * currentState.duration;
+    currentTimeSpan.textContent = formatTime(newTime);
+  }
+});
+
+muteBtn.addEventListener('click', async () => {
+  if (currentState.muted) {
+    await sendCommand({ type: 'UNMUTE' });
+  } else {
+    await sendCommand({ type: 'MUTE' });
+  }
+  setTimeout(refreshState, 100);
+});
+
+volumeSlider.addEventListener('input', async () => {
+  const volume = volumeSlider.value / 100;
+  await sendCommand({ type: 'VOLUME', volume: volume });
+  setTimeout(refreshState, 100);
+});
+
+openVideoBtn.addEventListener('click', () => {
+  if (currentState && currentState.url) {
+    chrome.tabs.create({ url: currentState.url });
+  }
+});
+
+// Initialize and refresh periodically
+refreshState();
+setInterval(refreshState, 1000);
