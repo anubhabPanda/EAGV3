@@ -2,6 +2,10 @@
 
 An AI-powered Chrome extension that helps you compare hotels across multiple websites using Google Gemini. Extract hotel details automatically and get intelligent comparisons based on your criteria.
 
+## DEMO LINK
+
+[AI Hotel Comparison](https://youtu.be/KG_mNgNEC3Y)
+
 ## 🌟 Features
 
 - **🏨 AI-Powered Extraction**: Automatically extracts hotel information from any website (Booking.com, MakeMyTrip, Hotels.com, etc.)

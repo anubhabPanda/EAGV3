@@ -19,8 +19,96 @@ load_dotenv()
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 MODEL = "gemini-3.1-flash-lite-preview"
 
-# Initialize geocoder for distance calculation
-geolocator = Nominatim(user_agent="hotel_comparison_extension")
+# Initialize geocoder for distance calculation with better user agent
+geolocator = Nominatim(
+    user_agent="hotel_comparison_extension_v1.0 (contact: user@example.com)",
+    timeout=10
+)
+
+
+def extract_hotel_image(soup, url):
+    """
+    Extract the main hotel image from the page
+
+    Args:
+        soup: BeautifulSoup object of the page
+        url: URL of the page
+
+    Returns:
+        str: Image URL or None
+    """
+    try:
+        # Strategy 1: Look for Open Graph image (most reliable)
+        og_image = soup.find('meta', property='og:image')
+        if og_image and og_image.get('content'):
+            image_url = og_image['content']
+            print(f"Found OG image: {image_url}")
+            return image_url
+
+        # Strategy 2: Look for Twitter card image
+        twitter_image = soup.find('meta', attrs={'name': 'twitter:image'})
+        if twitter_image and twitter_image.get('content'):
+            image_url = twitter_image['content']
+            print(f"Found Twitter image: {image_url}")
+            return image_url
+
+        # Strategy 3: Look for large images in the page
+        # Find all img tags with common hotel image patterns
+        images = soup.find_all('img')
+        for img in images:
+            src = img.get('src') or img.get('data-src') or img.get('data-lazy-src')
+            if not src:
+                continue
+
+            # Skip small images (icons, buttons, etc.)
+            width = img.get('width')
+            height = img.get('height')
+            if width and height:
+                try:
+                    if int(width) < 200 or int(height) < 150:
+                        continue
+                except:
+                    pass
+
+            # Skip common non-hotel images
+            if any(skip in src.lower() for skip in ['logo', 'icon', 'avatar', 'profile', 'banner', 'ad']):
+                continue
+
+            # Check if it's a likely hotel image
+            if any(keyword in src.lower() for keyword in ['hotel', 'room', 'property', 'photo', 'image', 'gallery']):
+                # Make URL absolute if it's relative
+                if src.startswith('//'):
+                    image_url = 'https:' + src
+                elif src.startswith('/'):
+                    from urllib.parse import urljoin
+                    image_url = urljoin(url, src)
+                else:
+                    image_url = src
+
+                print(f"Found hotel image from img tag: {image_url}")
+                return image_url
+
+        # Strategy 4: Just get the first reasonably sized image
+        for img in images[:10]:  # Check first 10 images
+            src = img.get('src') or img.get('data-src')
+            if src and len(src) > 20:  # URL should be reasonably long
+                if src.startswith('//'):
+                    image_url = 'https:' + src
+                elif src.startswith('/'):
+                    from urllib.parse import urljoin
+                    image_url = urljoin(url, src)
+                else:
+                    image_url = src
+
+                print(f"Using first available image: {image_url}")
+                return image_url
+
+        print("No suitable image found")
+        return None
+
+    except Exception as e:
+        print(f"Error extracting hotel image: {e}")
+        return None
 
 
 def extract_hotel_data(html_content, url=""):
@@ -37,6 +125,10 @@ def extract_hotel_data(html_content, url=""):
     try:
         # Clean HTML to reduce token count (remove scripts, styles, etc.)
         soup = BeautifulSoup(html_content, 'html.parser')
+
+        # Extract image URL before cleaning
+        image_url = extract_hotel_image(soup, url)
+        print(f"Extracted image URL: {image_url}")
 
         # Remove script and style elements
         for script in soup(["script", "style", "noscript", "iframe"]):
@@ -66,8 +158,7 @@ Extract the following information in JSON format:
     "location": "Hotel location/address",
     "amenities": "Key amenities (WiFi, Pool, Gym, etc.) - summarize in one line",
     "positiveReviews": "Main positive points from reviews (2-3 key points)",
-    "negativeReviews": "Main negative points from reviews (2-3 key points)",
-    "image": "Main hotel image URL (if found in the page)"
+    "negativeReviews": "Main negative points from reviews (2-3 key points)"
 }}
 
 Rules:
@@ -95,6 +186,12 @@ JSON Response:
             hotel_data = json.loads(json_match.group())
         else:
             hotel_data = json.loads(response_text)
+
+        # Add the extracted image URL
+        if image_url:
+            hotel_data['image'] = image_url
+        else:
+            hotel_data['image'] = None
 
         return hotel_data
 
@@ -181,6 +278,7 @@ DO NOT use HTML tags, only use markdown (###, **, -)
 def calculate_distance(hotel_location, reference_location):
     """
     Calculate distance between hotel and reference location using geocoding
+    If geocoding fails, use Gemini to estimate the distance
 
     Args:
         hotel_location: Hotel address/location
@@ -190,28 +288,103 @@ def calculate_distance(hotel_location, reference_location):
         str: Distance in km (e.g., "2.5 km from city center")
     """
     try:
-        # Geocode both locations
-        hotel_coords = geolocator.geocode(hotel_location)
-        ref_coords = geolocator.geocode(reference_location)
+        import time
 
-        if not hotel_coords or not ref_coords:
-            return "Distance unavailable"
+        # Check if we have valid inputs
+        if not hotel_location or not reference_location:
+            print(f"Missing location data - Hotel: '{hotel_location}', Reference: '{reference_location}'")
+            return None
 
-        # Calculate distance
-        distance_km = geodesic(
-            (hotel_coords.latitude, hotel_coords.longitude),
-            (ref_coords.latitude, ref_coords.longitude)
-        ).kilometers
+        print(f"Calculating distance from '{hotel_location}' to '{reference_location}'")
 
-        # Format result
-        if distance_km < 1:
-            return f"{int(distance_km * 1000)} meters from {reference_location}"
-        else:
-            return f"{distance_km:.1f} km from {reference_location}"
+        # Try geocoding approach first
+        try:
+            # Geocode reference location first (more likely to succeed)
+            time.sleep(1.5)  # Rate limiting - Nominatim requires min 1 sec between requests
+            ref_coords = geolocator.geocode(reference_location, timeout=10)
+
+            if not ref_coords:
+                print(f"Failed to geocode reference location: '{reference_location}', trying AI estimation...")
+                return estimate_distance_with_ai(hotel_location, reference_location)
+
+            print(f"Reference location geocoded: {ref_coords.latitude}, {ref_coords.longitude}")
+
+            # Geocode hotel location
+            time.sleep(1.5)  # Rate limiting
+            hotel_coords = geolocator.geocode(hotel_location, timeout=10)
+
+            if not hotel_coords:
+                print(f"Failed to geocode hotel location: '{hotel_location}', trying AI estimation...")
+                return estimate_distance_with_ai(hotel_location, reference_location)
+
+            print(f"Hotel location geocoded: {hotel_coords.latitude}, {hotel_coords.longitude}")
+
+            # Calculate distance
+            distance_km = geodesic(
+                (hotel_coords.latitude, hotel_coords.longitude),
+                (ref_coords.latitude, ref_coords.longitude)
+            ).kilometers
+
+            print(f"Distance calculated: {distance_km:.2f} km")
+
+            # Format result
+            if distance_km < 1:
+                return f"{int(distance_km * 1000)} meters from {reference_location}"
+            else:
+                return f"{distance_km:.1f} km from {reference_location}"
+
+        except Exception as e:
+            print(f"Geocoding error: {e}, trying AI estimation...")
+            return estimate_distance_with_ai(hotel_location, reference_location)
 
     except Exception as e:
         print(f"Error calculating distance: {e}")
-        return "Distance unavailable"
+        import traceback
+        traceback.print_exc()
+        return None
+
+
+def estimate_distance_with_ai(hotel_location, reference_location):
+    """
+    Use Gemini AI to estimate distance when geocoding fails
+    """
+    try:
+        print(f"Using AI to estimate distance from '{hotel_location}' to '{reference_location}'")
+
+        prompt = f"""
+Estimate the approximate distance between these two locations:
+
+Hotel Location: {hotel_location}
+Reference Point: {reference_location}
+
+Provide ONLY a concise distance estimate in this format:
+"X.X km from [reference location]" or "XXX meters from [reference location]"
+
+If you cannot estimate, respond with: "Distance unavailable"
+
+Be brief and factual. Examples:
+- "2.5 km from ooty bus stand"
+- "500 meters from city center"
+- "Distance unavailable"
+"""
+
+        response = client.models.generate_content(
+            model=MODEL,
+            contents=prompt
+        )
+
+        distance_text = response.text.strip()
+        print(f"AI estimated distance: {distance_text}")
+
+        # Clean up the response
+        if "unavailable" in distance_text.lower():
+            return None
+
+        return distance_text
+
+    except Exception as e:
+        print(f"Error in AI distance estimation: {e}")
+        return None
 
 
 # Test function (can be removed in production)
