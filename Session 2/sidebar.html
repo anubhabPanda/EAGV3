@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hotel Comparison</title>
+  <link rel="stylesheet" href="sidebar.css">
+</head>
+<body>
+  <div class="sidebar-container">
+    <!-- Header -->
+    <div class="header">
+      <h1>🏨 Hotel Comparison</h1>
+    </div>
+
+    <!-- Location Input -->
+    <div class="location-section">
+      <div class="input-group">
+        <span class="location-icon">📍</span>
+        <input 
+          type="text" 
+          id="location-input" 
+          placeholder="Enter reference location (e.g., city center, airport)"
+          class="location-input"
+        />
+      </div>
+    </div>
+
+    <!-- Add Hotel Button -->
+    <div class="action-section">
+      <button id="add-hotel-btn" class="add-hotel-btn">
+        ➕ Add Current Hotel
+      </button>
+      <button id="clear-all-btn" class="clear-btn">
+        🗑️ Clear All
+      </button>
+    </div>
+
+    <!-- Loading Indicator -->
+    <div id="loading" class="loading" style="display: none;">
+      <div class="spinner"></div>
+      <p>Extracting hotel data...</p>
+    </div>
+
+    <!-- Hotels List -->
+    <div class="hotels-section">
+      <h2>Added Hotels (<span id="hotel-count">0</span>)</h2>
+      <div id="hotels-list" class="hotels-list">
+        <div class="empty-state">
+          <p>No hotels added yet</p>
+          <small>Browse hotel listings and click "Add Current Hotel"</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- Comparison Section -->
+    <div class="comparison-section">
+      <h2>Compare Hotels</h2>
+      <div class="input-group">
+        <textarea 
+          id="criteria-input" 
+          placeholder="Enter comparison criteria (e.g., best value for money, closest to beach, family-friendly)
+Leave empty for default comparison"
+          class="criteria-input"
+          rows="3"
+        ></textarea>
+      </div>
+      <button id="compare-btn" class="compare-btn" disabled>
+        🔍 Compare Hotels
+      </button>
+    </div>
+
+    <!-- Comparison Results -->
+    <div id="comparison-results" class="comparison-results" style="display: none;">
+      <h2>Comparison Results</h2>
+      <div id="comparison-content" class="comparison-content"></div>
+    </div>
+  </div>
+
+  <script src="sidebar.js"></script>
+</body>
+</html>
