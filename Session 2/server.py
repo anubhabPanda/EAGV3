@@ -76,14 +76,22 @@ def extract_hotel():
         # Calculate distance if reference location is provided
         if reference_location and hotel_data.get('location'):
             try:
+                logger.info(f'Calculating distance from {hotel_data["location"]} to {reference_location}')
                 distance = calculate_distance(
                     hotel_data['location'],
                     reference_location
                 )
                 if distance:
                     hotel_data['distance'] = distance
+                    logger.info(f'Distance calculated: {distance}')
+                else:
+                    logger.warning('Distance calculation returned None')
+                    hotel_data['distance'] = 'Distance unavailable'
             except Exception as e:
                 logger.warning(f'Failed to calculate distance: {e}')
+                hotel_data['distance'] = 'Distance unavailable'
+        else:
+            logger.info(f'Skipping distance calculation - Reference: "{reference_location}", Hotel location: "{hotel_data.get("location")}"')
         
         logger.info(f'Successfully extracted hotel: {hotel_data.get("name", "Unknown")}')
         
