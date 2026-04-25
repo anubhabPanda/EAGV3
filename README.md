@@ -7,9 +7,11 @@ This repository contains various AI Projects done using Agents
 - [Projects](#projects)
   - [Session 1 - Youtube Controller](#session-1---youtube-controller)
   - [Session 2 - Hotel Comparison Assistant](#session-2---hotel-comparison-assistant)
+  - [Session 3 - AI Game Character Creator](#session-3---ai-game-character-creator)
 - [Demos](#demos)
   - [Session 1 Demo](#session-1-demo)
   - [Session 2 Demo](#session-2-demo)
+  - [Session 3 Demo](#session-3-demo)
 
 ## Projects
 
@@ -55,6 +57,32 @@ An AI-powered Chrome extension that helps you compare hotels across multiple boo
 
 ---
 
+### Session 3 - AI Game Character Creator
+
+An intelligent Chrome extension that creates complete game characters using Google Gemini 3 AI agents with advanced function calling and thought signatures.
+
+**Features:**
+- 🤖 AI Agent Orchestration with 6 specialized character design tools
+- 🧠 Reasoning Chain Visualization - See the AI think step-by-step!
+- 🎨 AI-Generated Character Portraits (gemini-2.5-flash-image)
+- 📊 Balanced attributes, backstory, abilities, appearance, equipment, personality
+- 💾 Save/Load characters with full reasoning chains
+- 📤 Export to JSON
+- ⚡ Creates complete characters in ~10-15 seconds
+- 🔍 Transparent AI reasoning with thought signatures
+
+**Tech Stack:**
+- Chrome Extension (Side Panel API)
+- Python Flask Backend
+- Google Gemini 3 Flash Preview (AI Agent)
+- gemini-2.5-flash-image (Nano Banana)
+- Function Calling with Thought Signatures
+- google-genai SDK v1.73.1
+
+**[View Full Documentation](Session%203/README.md)**
+
+---
+
 ## Demos
 
 ### Session 1 Demo
@@ -71,13 +99,32 @@ Watch the Youtube Controller extension in action:
 
 Watch the Hotel Comparison Assistant in action:
 
-🎥 **[Demo Video - Coming Soon]**
+[![Hotel Comparison Assistant Demo](https://img.youtube.com/vi/KG_mNgNEC3Y/0.jpg)](https://youtu.be/KG_mNgNEC3Y)
 
-**Quick Overview:**
-- Shows hotel data extraction from multiple sites
-- Demonstrates AI-powered comparison feature
-- Showcases distance calculation and image extraction
+🎥 [Watch Demo Video](https://youtu.be/KG_mNgNEC3Y)
+
+**Highlights:**
+- Hotel data extraction from multiple sites
+- AI-powered comparison feature
+- Distance calculation and image extraction
 - Real-world usage with Booking.com and MakeMyTrip
+
+---
+
+### Session 3 Demo
+
+Watch the AI Game Character Creator in action:
+
+[![AI Game Character Creator Demo](https://img.youtube.com/vi/BGUiVfTEdbI/0.jpg)](https://youtu.be/BGUiVfTEdbI)
+
+🎥 [Watch Demo Video](https://youtu.be/BGUiVfTEdbI)
+
+**Highlights:**
+- See Gemini 3 AI agent orchestrate 6 tools automatically
+- Watch the unique reasoning chain visualization
+- AI-generated character portraits in seconds
+- Complete character creation from simple descriptions
+- Step-by-step transparency of AI decision-making
 
 ---
 
