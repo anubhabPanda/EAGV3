@@ -133,7 +133,6 @@ celerybeat.pid
 
 # SageMath parsed files
 *.sage.py
-
 # Environments
 .env
 .envrc
@@ -208,3 +207,5 @@ __marimo__/
 
 *.md
 !README.md
+
+.vscode/

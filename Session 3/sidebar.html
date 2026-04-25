@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Character Designer</title>
+  <link rel="stylesheet" href="sidebar.css">
+</head>
+<body>
+  <div class="sidebar-container">
+    
+    <!-- Header -->
+    <div class="header">
+      <div class="header-title">
+        <span class="icon">🎮</span>
+        <h1>AI Character Designer</h1>
+      </div>
+    </div>
+
+    <!-- Character Description Input -->
+    <div class="description-section">
+      <h2>Describe Your Character</h2>
+      <textarea 
+        id="character-description" 
+        placeholder="E.g., A brave elven ranger from a mystical forest, skilled with bow and nature magic, wearing green leather armor with a silver emblem..."
+        rows="6"
+      ></textarea>
+      <button id="create-character-btn" class="create-btn">
+        <span class="btn-icon">✨</span>
+        Create Character
+      </button>
+    </div>
+
+    <!-- Loading Indicator -->
+    <div id="loading" class="loading" style="display: none;">
+      <div class="spinner"></div>
+      <p>AI agent is designing your character...</p>
+    </div>
+
+    <!-- Character Display -->
+    <div id="character-display" class="character-display" style="display: none;">
+
+      <!-- Agent Reasoning Chain -->
+      <div class="reasoning-section">
+        <button id="toggle-reasoning-btn" class="toggle-reasoning-btn">
+          <span class="toggle-icon">▼</span>
+          <span class="toggle-text">Agent's Reasoning Chain</span>
+          <span class="step-count" id="reasoning-step-count">0 steps</span>
+        </button>
+        <div id="reasoning-chain" class="reasoning-chain" style="display: none;">
+          <!-- Reasoning steps will be dynamically added here -->
+        </div>
+      </div>
+
+      <!-- Character Image -->
+      <div class="character-image-section">
+        <h2>Character Visualization</h2>
+        <div id="character-image-container" class="image-container">
+          <img id="character-image" src="" alt="Character" style="display: none;">
+          <div id="image-loading" class="image-loading">
+            <div class="spinner-small"></div>
+            <p>Generating character image...</p>
+          </div>
+          <div id="image-placeholder" class="image-placeholder" style="display: none;">
+            <span class="placeholder-icon">🎨</span>
+            <p>Character Image</p>
+          </div>
+        </div>
+        <button id="regenerate-image-btn" class="secondary-btn" style="display: none;">
+          <span class="btn-icon">🔄</span>
+          Regenerate Image
+        </button>
+      </div>
+
+      <!-- Character Details -->
+      <div class="character-details">
+        
+        <!-- Attributes -->
+        <div class="detail-section">
+          <h3>⚔️ Attributes</h3>
+          <div id="attributes-content" class="detail-content"></div>
+        </div>
+
+        <!-- Backstory -->
+        <div class="detail-section">
+          <h3>📜 Backstory</h3>
+          <div id="backstory-content" class="detail-content"></div>
+        </div>
+
+        <!-- Abilities -->
+        <div class="detail-section">
+          <h3>💫 Abilities</h3>
+          <div id="abilities-content" class="detail-content"></div>
+        </div>
+
+        <!-- Appearance -->
+        <div class="detail-section">
+          <h3>👤 Appearance</h3>
+          <div id="appearance-content" class="detail-content"></div>
+        </div>
+
+        <!-- Equipment -->
+        <div class="detail-section">
+          <h3>🛡️ Equipment</h3>
+          <div id="equipment-content" class="detail-content"></div>
+        </div>
+
+        <!-- Personality -->
+        <div class="detail-section">
+          <h3>🎭 Personality</h3>
+          <div id="personality-content" class="detail-content"></div>
+        </div>
+
+        <!-- Summary -->
+        <div class="detail-section">
+          <h3>📝 Character Summary</h3>
+          <div id="summary-content" class="detail-content"></div>
+        </div>
+
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="action-buttons">
+        <button id="save-character-btn" class="primary-btn">
+          <span class="btn-icon">💾</span>
+          Save Character
+        </button>
+        <button id="new-character-btn" class="secondary-btn">
+          <span class="btn-icon">➕</span>
+          Create New
+        </button>
+        <button id="export-json-btn" class="secondary-btn">
+          <span class="btn-icon">📄</span>
+          Export JSON
+        </button>
+      </div>
+
+    </div>
+
+    <!-- Saved Characters -->
+    <div class="saved-characters-section">
+      <h2>Saved Characters (<span id="character-count">0</span>)</h2>
+      <div id="saved-characters-list" class="saved-characters-list"></div>
+      <button id="clear-all-btn" class="danger-btn">
+        <span class="btn-icon">🗑️</span>
+        Clear All
+      </button>
+    </div>
+
+  </div>
+
+  <script src="sidebar.js"></script>
+</body>
+</html>
