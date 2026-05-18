@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Agent Dashboard</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Left Side: Chat Window -->
+        <div class="chat-panel">
+            <div class="chat-header">
+                <h1>🤖 AI Agent Chat</h1>
+                <div class="header-actions">
+                    <button id="resetBtn" class="btn btn-secondary">🔄 Reset</button>
+                    <button id="viewToolsBtn" class="btn btn-secondary">🛠️ Tools</button>
+                </div>
+            </div>
+
+            <!-- Chat Messages -->
+            <div id="chatMessages" class="chat-messages">
+                <div class="message system">
+                    <div class="message-content">
+                        <strong>System:</strong> Welcome! I'm your AI assistant with access to tools. Ask me anything!
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="chat-input-container">
+                <textarea 
+                    id="chatInput" 
+                    class="chat-input" 
+                    placeholder="Type your message here... (Press Enter to send, Shift+Enter for new line)"
+                    rows="3"
+                ></textarea>
+                <button id="sendBtn" class="btn btn-primary">
+                    <span id="sendBtnText">Send</span>
+                    <span id="sendBtnLoading" class="hidden">⏳</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Right Side: Dynamic Panel -->
+        <div class="right-panel">
+            <div class="panel-header">
+                <h2 id="panelTitle">💬 Response</h2>
+                <button id="expandBtn" class="btn btn-icon">⛶</button>
+            </div>
+            
+            <div id="rightPanelContent" class="panel-content">
+                <div class="empty-state">
+                    <div class="empty-icon">🎯</div>
+                    <h3>Ready to assist!</h3>
+                    <p>Send a message to see my response and tool usage here.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tools Modal -->
+    <div id="toolsModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🛠️ Available Tools</h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div id="toolsList" class="modal-body">
+                Loading tools...
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
