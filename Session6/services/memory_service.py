@@ -202,7 +202,6 @@ class Memory:
             if raw_text in seen_texts:
                 # Duplicate found - skip this older version
                 duplicates_removed += 1
-                print(f"Removing duplicate: {item.id} (older version of same text)")
             else:
                 # First occurrence of this text
                 seen_texts[raw_text] = item.id
@@ -217,7 +216,6 @@ class Memory:
         # Save to file
         if duplicates_removed > 0:
             self._save_to_file()
-            print(f"Deduplicated memory: removed {duplicates_removed} duplicate(s)")
 
         return duplicates_removed
 
@@ -246,7 +244,7 @@ class Memory:
             return items
 
         except (json.JSONDecodeError, ValueError, KeyError) as e:
-            print(f"Warning: Failed to load memory from {self.memory_file}: {e}")
+            # Silently return empty list on load failure
             return []
 
     def _save_to_file(self) -> None:
@@ -270,7 +268,8 @@ class Memory:
                 json.dump(data, f, indent=2, ensure_ascii=False)
 
         except Exception as e:
-            print(f"Warning: Failed to save memory to {self.memory_file}: {e}")
+            # Silently fail on save error
+            pass
 
     def remember(
         self,
@@ -307,7 +306,7 @@ class Memory:
             existing_item = next((item for item in self.storage if item.id == existing_id), None)
 
             if existing_item:
-                print(f"Memory deduplication: Found existing memory item {existing_item.id} for same text (O(1) lookup)")
+                # Found duplicate - return existing item
                 # Optionally update run_id to track latest access
                 # existing_item.run_id = run_id  # Uncomment if you want to track latest run
                 return existing_item
@@ -330,22 +329,20 @@ Classify this text and extract the following:
 
 2. **keywords**: Extract 3-10 searchable keywords. Rules:
    - Use lowercase
-   - Remove possessives: "mom's" → "mom"
+   - Remove possessives: "John's" → "john"
    - Include dates, names, numbers as separate tokens
    - Include month names: "may", "june", etc.
    - Remove stop words: "the", "a", "is", "was", etc.
-   - Example: "My mom's birthday is 15 May 2026" → ["mom", "birthday", "15", "may", "2026"]
 
 3. **descriptor**: One-line summary (max 100 chars), clear and specific
-   - Good: "Mom's birthday: May 15, 2026"
+   - Good: "John's birthday: May 15, 2026"
    - Bad: "Information about a birthday"
 
 4. **value**: Structured extraction as a JSON object. Extract:
    - Dates in ISO format if present
-   - Names, numbers, entities
+   - Names, numbers, entities (named entities)
    - Key facts as key-value pairs
-   - Original text preserved
-   - Example: {{"date": "2026-05-15", "person": "mom", "event": "birthday", "raw_text": "..."}}
+   - Example: {{"value": "2026-05-15", "entity": "John", "attribute": "birthday"}}
 
 RESPOND WITH:
 A MemoryExtraction object with all four fields populated.
@@ -373,7 +370,6 @@ A MemoryExtraction object with all four fields populated.
             extraction = MemoryExtraction.model_validate(response["parsed"])
         else:
             # Fallback: manual extraction
-            print(f"Warning: LLM did not return structured output, using fallback extraction")
             extraction = self._fallback_extraction(raw_text)
 
         # Generate unique ID

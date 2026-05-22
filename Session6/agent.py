@@ -10,6 +10,7 @@ from services.perception_service import Perception
 from services.artifact_service import ArtifactStore
 from services.action_service import Action
 from utils import ensure_llm_gateway
+from tracer import AgentTracer
 import uuid
 from schemas import Goal
 
@@ -52,34 +53,53 @@ def get_final_answer(history: list[dict]) -> str:
             return "Final Answer: \n" + entry["text"]
     return "No answer found."
 
-async def run(query: str) -> str:
+async def run(query: str, tracer: AgentTracer = None) -> str:
     ensure_llm_gateway()
+
+    # Initialize tracer if not provided
+    if tracer is None:
+        tracer = AgentTracer(enabled=True)
+
     run_id = uuid.uuid4().hex[:8]
     history: list[dict] = []
     prior_goals: list[Goal] = []
 
-    memory.remember(query, source="user_query", run_id=run_id)
+    # Log memory classification
+    memory_item = memory.remember(query, source="user_query", run_id=run_id)
+    tracer.memory_remember(
+        raw_text=query,
+        kind=memory_item.kind,
+        keywords=memory_item.keywords
+    )
 
     async with mcp_session() as session:
         mcp_tools = await load_tools(session)
         tools = mcp_tools_for_decision(mcp_tools)
 
-        print("Tools available to the decision layer:", [tool.get("name", "<Unnamed Tool>") for tool in tools])
-        
         for it in range(1, MAX_ITERATIONS + 1):
+            # Start iteration
+            tracer.iteration_start(it)
+
+            # Perception
             hits = memory.read(query, history)
             obs = perception.observe(query, hits, history, prior_goals, run_id)
-            print(f"\nHits: {hits}")
-            print(f"Observation: {obs.model_dump()}")
+            tracer.perception(obs.goals, obs.next_unfinished)
+
+            # Update prior goals for next iteration
+            prior_goals = obs.goals
 
             # Check if all goals are done - if so, break the loop
             if obs.goals and all(goal.done for goal in obs.goals):
-                print(f"\n✓ All {len(obs.goals)} goals completed. Exiting loop.")
+                tracer.custom("system", f"All {len(obs.goals)} goals completed", indent=True)
                 break
 
+            # Get next unfinished goal
             goal = obs.next_unfinished
-            print(f"\n\nIteration {it}: Next goal - {goal.text if goal else 'None'}")
+            if not goal:
+                tracer.custom("system", "No unfinished goals found", indent=True)
+                break
 
+            # Attach artifacts if needed
             attached = []
             if goal.attach_artifact_id and artifacts.exists(goal.attach_artifact_id):
                 attached.append((
@@ -87,17 +107,40 @@ async def run(query: str) -> str:
                     artifacts.get_bytes(goal.attach_artifact_id),
                 ))
 
+            # Decision
             out = decision.next_step(goal, hits, attached, history, tools)
 
-            print(f"\nDecision output: {out.model_dump()}")
             if out.answer:
-                history.append({"iter": it, "kind": "answer",
-                                "goal_id": goal.id, "text": out.answer})
-                continue  
-            result_text, art_id = await action.execute(session, out.tool_call)  
+                # Decision returned an answer
+                tracer.decision_answer(out.answer)
+                history.append({
+                    "iter": it,
+                    "kind": "answer",
+                    "goal_id": goal.id,
+                    "text": out.answer
+                })
 
-            print(f"\nAction result: {result_text[:300]}{'... (truncated)' if len(result_text) > 300 else ''}")
-            print(f"Artifact created: {art_id}" if art_id else "No artifact created.")
+                # Check if this is the final answer
+                if it == MAX_ITERATIONS or all(g.done for g in obs.goals):
+                    tracer.final_answer(out.answer)
+                    return out.answer
+                continue
+
+            # Decision returned a tool call
+            tracer.decision_tool_call(out.tool_call)
+
+            # Action
+            result_text, art_id = await action.execute(session, out.tool_call)
+
+            # Log action result
+            is_error = "error" in result_text.lower() or "failed" in result_text.lower()
+            tracer.action_result(
+                success=not is_error,
+                message=result_text if is_error else "",
+                artifact_id=art_id
+            )
+
+            # Record outcome in memory
             memory.record_outcome(
                 tool_call=out.tool_call,
                 result_text=result_text,
@@ -105,19 +148,28 @@ async def run(query: str) -> str:
                 run_id=run_id,
                 goal_id=goal.id,
             )
-            history.append({"iter": it, "kind": "action",
-                            "goal_id": goal.id, "tool": out.tool_call.name,
-                            "arguments": out.tool_call.arguments,
-                            "result_descriptor": result_text[:300],
-                            "artifact_id": art_id})
-            
-    return get_final_answer(history)           
+
+            # Add to history
+            history.append({
+                "iter": it,
+                "kind": "action",
+                "goal_id": goal.id,
+                "tool": out.tool_call.name,
+                "arguments": out.tool_call.arguments,
+                "result_descriptor": result_text[:300],
+                "artifact_id": art_id
+            })
+
+    # Get final answer from history
+    final = get_final_answer(history)
+    tracer.final_answer(final)
+    return final
 
 if __name__ == "__main__":
-    MAX_ITERATIONS = 2
+    MAX_ITERATIONS = 5
     memory = Memory()
     perception = Perception()
     artifacts = ArtifactStore()
     decision = Decision()
     action = Action()
-    asyncio.run(run("My mom's birthday is 15 May 2026. Remember that and give me a calendar reminder for two weeks before and on the day."))
+    asyncio.run(run("When is mom's birthday?"))

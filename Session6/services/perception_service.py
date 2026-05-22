@@ -297,8 +297,6 @@ class Perception:
                     raise ValueError("No JSON found in response")
             except (json.JSONDecodeError, ValueError) as e:
                 # Last resort: return empty observation
-                print(f"Warning: Failed to parse LLM response: {e}")
-                print(f"Response text: {text[:200]}")
                 observation = Observation(goals=prior_goals, next_unfinished=None)
 
         return observation
