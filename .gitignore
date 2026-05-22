@@ -209,3 +209,7 @@ __marimo__/
 !README.md
 
 .vscode/
+
+resources
+
+*/state/artifacts
