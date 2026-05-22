@@ -132,11 +132,19 @@ INSTRUCTIONS:
 5. **Output format:** Return an Observation object with:
    - `goals`: The complete list of goals (in order)
    - `next_unfinished`: The first goal in the list where `done: false`, or null if all are done
+   - `final_answer`: If ALL goals are done (every goal has `done: true`), generate a comprehensive
+     final answer that addresses the original user query based on all completed work.
+     This should be a substantive response (3+ sentences or a list) that synthesizes the results.
+     If any goal is NOT done, set `final_answer` to null.
 
 INTERNAL SELF-CHECKS (verify before output):
 
 □ **Consistency check**: Is `next_unfinished` actually the first goal in `goals` where `done: false`?
   If all goals are done, is `next_unfinished` set to null?
+
+□ **Final answer check**: If ALL goals are marked `done: true`, have you generated a comprehensive
+  `final_answer` that addresses the user's original query? If any goal is not done, is `final_answer`
+  set to null?
 
 □ **Completion integrity**: Have you verified that no completed goal (done: true) has been
   reverted to done: false? Once done, always done.
@@ -198,12 +206,24 @@ Before outputting the Observation object, provide your reasoning in this structu
 
 Then output the Observation object:
 
+EXAMPLE 1 (goals in progress):
 {{
   "goals": [
     {{"id": "goal:1", "text": "Fetch Apollo 11 landing page", "done": true, "attach_artifact_id": null}},
-    {{"id": "goal:2", "text": "Extract the landing year", "done": false, "attach_artifact_id": 5}}
+    {{"id": "goal:2", "text": "Extract the landing year", "done": false, "attach_artifact_id": "art:5"}}
   ],
-  "next_unfinished": {{"id": "goal:2", "text": "Extract the landing year", "done": false, "attach_artifact_id": 5}}
+  "next_unfinished": {{"id": "goal:2", "text": "Extract the landing year", "done": false, "attach_artifact_id": "art:5"}},
+  "final_answer": null
+}}
+
+EXAMPLE 2 (all goals complete):
+{{
+  "goals": [
+    {{"id": "goal:1", "text": "Fetch Apollo 11 landing page", "done": true, "attach_artifact_id": null}},
+    {{"id": "goal:2", "text": "Extract the landing year", "done": true, "attach_artifact_id": null}}
+  ],
+  "next_unfinished": null,
+  "final_answer": "Apollo 11 landed on the Moon in 1969. The mission successfully achieved its goal on July 20, 1969, when Neil Armstrong and Buzz Aldrin became the first humans to walk on the lunar surface."
 }}
 
 CRITICAL REMINDERS:
@@ -297,6 +317,6 @@ class Perception:
                     raise ValueError("No JSON found in response")
             except (json.JSONDecodeError, ValueError) as e:
                 # Last resort: return empty observation
-                observation = Observation(goals=prior_goals, next_unfinished=None)
+                observation = Observation(goals=prior_goals, next_unfinished=None, final_answer=None)
 
         return observation
