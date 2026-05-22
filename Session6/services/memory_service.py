@@ -56,6 +56,11 @@ class Memory:
             self.storage: list[MemoryItem] = storage
         else:
             self.storage = self._load_from_file()
+
+        # Build deduplication index: raw_text -> memory_item_id
+        # This makes duplicate detection O(1) instead of O(n)
+        self._text_index: dict[str, str] = {}
+        self._rebuild_index()
     
     def read(
         self,
@@ -137,24 +142,84 @@ class Memory:
         
         return score
     
+    def _rebuild_index(self) -> None:
+        """
+        Rebuild the text-to-id index from current storage.
+        Call this after loading from file or bulk operations.
+        """
+        self._text_index.clear()
+        for item in self.storage:
+            raw_text = item.value.get("raw_text", "")
+            if raw_text:
+                self._text_index[raw_text] = item.id
+
     def add(self, item: MemoryItem) -> None:
         """
         Add a memory item to storage and persist to file.
+        Also updates the deduplication index.
 
         Args:
             item: The MemoryItem to add
         """
         self.storage.append(item)
+
+        # Update index
+        raw_text = item.value.get("raw_text", "")
+        if raw_text:
+            self._text_index[raw_text] = item.id
+
         self._save_to_file()
 
     def clear(self) -> None:
-        """Clear all memory items from storage and file."""
+        """Clear all memory items from storage, file, and index."""
         self.storage.clear()
+        self._text_index.clear()
         self._save_to_file()
 
     def __len__(self) -> int:
         """Return the number of items in memory."""
         return len(self.storage)
+
+    def deduplicate(self) -> int:
+        """
+        Remove duplicate memories based on raw_text content.
+        Keeps the most recent version (latest created_at).
+        Rebuilds the index after deduplication.
+
+        Returns:
+            Number of duplicates removed
+        """
+        seen_texts = {}
+        unique_items = []
+        duplicates_removed = 0
+
+        # Sort by created_at (oldest first) so we keep the newest
+        sorted_items = sorted(self.storage, key=lambda x: x.created_at)
+
+        for item in sorted_items:
+            raw_text = item.value.get("raw_text", "")
+
+            if raw_text in seen_texts:
+                # Duplicate found - skip this older version
+                duplicates_removed += 1
+                print(f"Removing duplicate: {item.id} (older version of same text)")
+            else:
+                # First occurrence of this text
+                seen_texts[raw_text] = item.id
+                unique_items.append(item)
+
+        # Update storage with deduplicated list
+        self.storage = unique_items
+
+        # Rebuild index after deduplication
+        self._rebuild_index()
+
+        # Save to file
+        if duplicates_removed > 0:
+            self._save_to_file()
+            print(f"Deduplicated memory: removed {duplicates_removed} duplicate(s)")
+
+        return duplicates_removed
 
     def _load_from_file(self) -> list[MemoryItem]:
         """
@@ -223,6 +288,9 @@ class Memory:
         - descriptor: short one-line summary
         - value: structured data extracted from the text
 
+        Deduplication: Checks if similar content already exists based on raw_text.
+        If found, updates run_id and returns existing item instead of creating duplicate.
+
         Args:
             raw_text: The free-form text content to remember
             source: Source identifier (e.g., "user_input", "observation", "system")
@@ -230,8 +298,19 @@ class Memory:
             goal_id: Optional identifier for the associated goal
 
         Returns:
-            The created MemoryItem
+            The created or existing MemoryItem
         """
+        # O(1) duplicate check using index
+        if raw_text in self._text_index:
+            # Found duplicate - retrieve existing item by ID
+            existing_id = self._text_index[raw_text]
+            existing_item = next((item for item in self.storage if item.id == existing_id), None)
+
+            if existing_item:
+                print(f"Memory deduplication: Found existing memory item {existing_item.id} for same text (O(1) lookup)")
+                # Optionally update run_id to track latest access
+                # existing_item.run_id = run_id  # Uncomment if you want to track latest run
+                return existing_item
         # Build classification prompt
         prompt = f"""You are the Memory classification module. Analyze the following text and extract structured memory information.
 

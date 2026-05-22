@@ -60,8 +60,13 @@ class Action:
         # Behavior 3: Real MCP dispatch
         try:
             result = await session.call_tool(tool_call.name, arguments=tool_call.arguments or {})
+
             # Extract text from first content block (standard MCP pattern from agent5.py)
-            result_text = result.content[0].text if result.content else ""
+            # MCP returns content blocks as objects with .text attribute
+            if result.content:
+                result_text = result.content[0].text
+            else:
+                result_text = ""
 
         except Exception as e:
             # Tool execution failed

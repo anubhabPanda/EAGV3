@@ -242,8 +242,8 @@ class Decision:
             history=history,
         )
 
-        print("\n--- DECISION SYSTEM PROMPT ---")
-        print(system_prompt + "\n" + user_prompt)
+        # print("\n--- DECISION SYSTEM PROMPT ---")
+        # print(system_prompt + "\n" + user_prompt)
 
         # Call LLM Gateway V3 with decision routing and tool use
         # When tools are provided, the gateway returns native tool_calls

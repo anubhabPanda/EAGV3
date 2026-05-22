@@ -48,8 +48,8 @@ def mcp_tools_for_decision(mcp_tools: list) -> list[dict]:
 def get_final_answer(history: list[dict]) -> str:
     """Extract the final answer from the history."""
     for entry in reversed(history):
-        if entry["kind"] == "action" and entry.get("result_descriptor"):
-            return "Final Answer: \n" + entry["result_descriptor"]
+        if entry["kind"] == "answer" and entry.get("text"):
+            return "Final Answer: \n" + entry["text"]
     return "No answer found."
 
 async def run(query: str) -> str:
@@ -90,11 +90,14 @@ async def run(query: str) -> str:
             out = decision.next_step(goal, hits, attached, history, tools)
 
             print(f"\nDecision output: {out.model_dump()}")
-            if out.is_answer:
+            if out.answer:
                 history.append({"iter": it, "kind": "answer",
                                 "goal_id": goal.id, "text": out.answer})
                 continue  
             result_text, art_id = await action.execute(session, out.tool_call)  
+
+            print(f"\nAction result: {result_text[:300]}{'... (truncated)' if len(result_text) > 300 else ''}")
+            print(f"Artifact created: {art_id}" if art_id else "No artifact created.")
             memory.record_outcome(
                 tool_call=out.tool_call,
                 result_text=result_text,
@@ -107,11 +110,11 @@ async def run(query: str) -> str:
                             "arguments": out.tool_call.arguments,
                             "result_descriptor": result_text[:300],
                             "artifact_id": art_id})
-    
+            
     return get_final_answer(history)           
 
 if __name__ == "__main__":
-    MAX_ITERATIONS = 5
+    MAX_ITERATIONS = 2
     memory = Memory()
     perception = Perception()
     artifacts = ArtifactStore()

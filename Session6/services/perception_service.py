@@ -112,12 +112,12 @@ INSTRUCTIONS:
 
 1. **If PRIOR GOALS is empty:** Decompose the user query into one or more bounded goals.
    Each goal must be a short imperative statement (e.g., "Fetch the Wikipedia page for Apollo 11").
-   Create a clear, sequential plan.
+   Create a clear, sequential plan. Do not do arithmetic or make assumptions about goals descriptions.
 
 2. **If PRIOR GOALS exist:** For each prior goal, examine the RUN HISTORY.
    Mark the goal `done: true` the moment the history contains an action that satisfies it.
    Once done, the goal remains done in every subsequent iteration.
-   DO NOT unmarked a completed goal.
+   DO NOT unmark a completed goal.
 
 3. **For the first unfinished goal:** Decide whether it needs raw bytes from a previously
    fetched artifact. If yes, set the goal's `attach_artifact_id` to one of the artifact IDs
