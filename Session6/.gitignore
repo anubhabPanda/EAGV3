@@ -24,3 +24,5 @@ sandbox/
 # OS
 .DS_Store
 Thumbs.db
+
+usage.json
