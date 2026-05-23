@@ -46,7 +46,8 @@ def build_perception_prompt(
             memory_section += f"   Keywords: {', '.join(hit.keywords)}\n"
             if hit.artifact_id is not None:
                 memory_section += f"   Artifact ID: {hit.artifact_id}\n"
-            memory_section += f"   Source: {hit.source}\n"
+            else:
+                memory_section += f"   Artifact ID: None\n"
             memory_section += f"   Confidence: {hit.confidence}\n"
             memory_section += "\n"
     else:
@@ -56,23 +57,18 @@ def build_perception_prompt(
     history_section = "RUN HISTORY:\n"
     if history:
         for i, entry in enumerate(history, 1):
-            role = entry.get("role", "unknown")
-            content = entry.get("content", "")
-            tool_calls = entry.get("tool_calls", [])
-            tool_name = entry.get("tool_name", "")
-
-            if role == "user":
-                history_section += f"{i}. [USER] {content}\n"
-            elif role == "assistant":
-                if tool_calls:
-                    for tc in tool_calls:
-                        history_section += f"{i}. [ASSISTANT → TOOL] {tc['name']}({json.dumps(tc.get('arguments', {}))})\n"
-                elif content:
-                    history_section += f"{i}. [ASSISTANT] {content}\n"
-            elif role == "tool":
-                history_section += f"{i}. [TOOL → {tool_name}] {content[:100]}{'...' if len(content) > 100 else ''}\n"
+            kind = entry.get("kind", "unknown")
+            iter = entry.get("iter", "")
+            tool_arguments = entry.get("arguments", [])
+            tool_name = entry.get("tool", "")
+            artifact_id = entry.get("artifact_id", "")
+            goal_id = entry.get("goal_id", "")
+            result_descriptor = entry.get("result_descriptor", "")
+            text = entry.get("text", "")
+            if kind == "action":
+                history_section += f"ITERATION {iter} GOAL:{goal_id} RESPONSE TYPE:{kind} TOOL NAME:{tool_name} TOOL ARGUMENTS: {tool_arguments} RESPONSE TEXT: {result_descriptor} ARTIFACT ID:{artifact_id}\n" 
             else:
-                history_section += f"{i}. [{role.upper()}] {str(entry)[:100]}\n"
+                history_section += f"ITERATION {iter} GOAL {goal_id} RESPONSE TYPE: {kind} RESPONSE TEXT: {text} \n"    
     else:
         history_section += "(No history yet)\n"
     history_section += "\n"
@@ -112,12 +108,13 @@ INSTRUCTIONS:
 
 1. **If PRIOR GOALS is empty:** Decompose the user query into one or more bounded goals.
    Each goal must be a short imperative statement (e.g., "Fetch the Wikipedia page for Apollo 11").
-   Create a clear, sequential plan.
+   Create a clear, sequential plan. Do not do arithmetic or make assumptions about goals descriptions.
 
 2. **If PRIOR GOALS exist:** For each prior goal, examine the RUN HISTORY.
    Mark the goal `done: true` the moment the history contains an action that satisfies it.
    Once done, the goal remains done in every subsequent iteration.
-   DO NOT unmarked a completed goal.
+   DO NOT unmark a completed goal. Do NOT mark a goal done if it is partially completed. 
+   For example, if a goal is to do 5 things and only 4 things are done, do not mark it as complete
 
 3. **For the first unfinished goal:** Decide whether it needs raw bytes from a previously
    fetched artifact. If yes, set the goal's `attach_artifact_id` to one of the artifact IDs
@@ -132,11 +129,20 @@ INSTRUCTIONS:
 5. **Output format:** Return an Observation object with:
    - `goals`: The complete list of goals (in order)
    - `next_unfinished`: The first goal in the list where `done: false`, or null if all are done
+   - `final_answer`: If ALL goals are done (every goal has `done: true`), generate a comprehensive
+     final answer that addresses the original user query based on all completed work.
+     This should be a substantive response (3+ sentences or a list) that synthesizes the results.
+     If any goal is NOT done, set `final_answer` to null.
 
 INTERNAL SELF-CHECKS (verify before output):
 
 □ **Consistency check**: Is `next_unfinished` actually the first goal in `goals` where `done: false`?
-  If all goals are done, is `next_unfinished` set to null?
+  If all goals are done, is `next_unfinished` set to null? 
+  DO NOT rely on snippets from web search results to arrive at an answer.
+
+□ **Final answer check**: If ALL goals are marked `done: true`, have you generated a comprehensive
+  `final_answer` that addresses the user's original query? If any goal is not done, is `final_answer`
+  set to null? 
 
 □ **Completion integrity**: Have you verified that no completed goal (done: true) has been
   reverted to done: false? Once done, always done.
@@ -198,12 +204,34 @@ Before outputting the Observation object, provide your reasoning in this structu
 
 Then output the Observation object:
 
+EXAMPLE 1 (goals in progress):
+MEMORY HITS:
+1. [fact] Wikipedia page for Apollo 11
+   Artifact ID: None
+2. [tool_outcome] Result of fetch_url("https://en.wikipedia.org/wiki/Apollo_11")
+   Artifact ID: art:5
 {{
   "goals": [
     {{"id": "goal:1", "text": "Fetch Apollo 11 landing page", "done": true, "attach_artifact_id": null}},
-    {{"id": "goal:2", "text": "Extract the landing year", "done": false, "attach_artifact_id": 5}}
+    {{"id": "goal:2", "text": "Extract the landing year", "done": false, "attach_artifact_id": "art:5"}}
   ],
-  "next_unfinished": {{"id": "goal:2", "text": "Extract the landing year", "done": false, "attach_artifact_id": 5}}
+  "next_unfinished": {{"id": "goal:2", "text": "Extract the landing year", "done": false, "attach_artifact_id": "art:5"}},
+  "final_answer": null
+}}
+
+MEMORY HITS:
+1. [fact] Wikipedia page for Apollo 11
+   Artifact ID: None
+2. [tool_outcome] Result of fetch_url("https://en.wikipedia.org/wiki/Apollo_11")
+   Artifact ID: None   
+EXAMPLE 2 (all goals complete):
+{{
+  "goals": [
+    {{"id": "goal:1", "text": "Fetch Apollo 11 landing page", "done": true, "attach_artifact_id": null}},
+    {{"id": "goal:2", "text": "Extract the landing year", "done": true, "attach_artifact_id": null}}
+  ],
+  "next_unfinished": null,
+  "final_answer": "Apollo 11 landed on the Moon in 1969. The mission successfully achieved its goal on July 20, 1969, when Neil Armstrong and Buzz Aldrin became the first humans to walk on the lunar surface."
 }}
 
 CRITICAL REMINDERS:
@@ -211,6 +239,7 @@ CRITICAL REMINDERS:
 - Evidence-based decisions only - never speculate about completion
 - Conservative over aggressive - preserve state when uncertain
 - Artifact IDs must exist in MEMORY HITS to be valid
+- Never attach tool calls in attach_artifact_id. Only attach artifacts_id from memory.
 - Goal completion is irreversible - verify before marking done: true
 - Order is sacred - never reorder, insert, or drop goals
 - Be explicit about your reasoning type and edge cases
@@ -264,20 +293,27 @@ class Perception:
         # Get the Observation schema for structured output
         observation_schema = Observation.model_json_schema()
 
-        # Call LLM Gateway V3 with structured output
-        response = self.llm.chat(
-            prompt=prompt,
-            auto_route="perception",
-            provider="g", # Pins to Gemini
-            response_format={
-                "type": "json_schema",
-                "schema": observation_schema,
-                "name": "Observation",
-                "strict": True,
-            },
-            temperature=0,
-            max_tokens=8192,
-        )
+        # Call LLM Gateway V3 with structured output (with retry)
+        for attempt in range(3):
+            try:
+                response = self.llm.chat(
+                    prompt=prompt,
+                    auto_route="perception",
+                    provider="g", # Pins to Gemini
+                    response_format={
+                        "type": "json_schema",
+                        "schema": observation_schema,
+                        "name": "Observation",
+                        "strict": True,
+                    },
+                    temperature=0,
+                    max_tokens=8192,
+                )
+                break
+            except Exception as e:
+                if attempt == 2:
+                    raise
+                continue
 
         # Parse the structured response
         if response.get("parsed"):
@@ -297,8 +333,6 @@ class Perception:
                     raise ValueError("No JSON found in response")
             except (json.JSONDecodeError, ValueError) as e:
                 # Last resort: return empty observation
-                print(f"Warning: Failed to parse LLM response: {e}")
-                print(f"Response text: {text[:200]}")
-                observation = Observation(goals=prior_goals, next_unfinished=None)
+                observation = Observation(goals=prior_goals, next_unfinished=None, final_answer=None)
 
         return observation

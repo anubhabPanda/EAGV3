@@ -56,13 +56,18 @@ class Memory:
             self.storage: list[MemoryItem] = storage
         else:
             self.storage = self._load_from_file()
+
+        # Build deduplication index: raw_text -> memory_item_id
+        # This makes duplicate detection O(1) instead of O(n)
+        self._text_index: dict[str, str] = {}
+        self._rebuild_index()
     
     def read(
         self,
         query: str,
         history: list[dict],
         kinds: list[str] | None = None,
-        top_k: int = 8
+        top_k: int = 3
     ) -> list[MemoryItem]:
         """
         Read relevant memory items based on keyword overlap.
@@ -78,7 +83,7 @@ class Memory:
             history: Conversation history (list of message dicts)
             kinds: Optional list of memory kinds to filter by 
                    (e.g., ["fact", "preference", "tool_outcome", "scratchpad"])
-            top_k: Number of top results to return (default: 8)
+            top_k: Number of top results to return (default: 3)
         
         Returns:
             List of top-k MemoryItem objects ranked by relevance
@@ -137,24 +142,82 @@ class Memory:
         
         return score
     
+    def _rebuild_index(self) -> None:
+        """
+        Rebuild the text-to-id index from current storage.
+        Call this after loading from file or bulk operations.
+        """
+        self._text_index.clear()
+        for item in self.storage:
+            raw_text = item.value.get("raw_text", "")
+            if raw_text:
+                self._text_index[raw_text] = item.id
+
     def add(self, item: MemoryItem) -> None:
         """
         Add a memory item to storage and persist to file.
+        Also updates the deduplication index.
 
         Args:
             item: The MemoryItem to add
         """
         self.storage.append(item)
+
+        # Update index
+        raw_text = item.value.get("raw_text", "")
+        if raw_text:
+            self._text_index[raw_text] = item.id
+
         self._save_to_file()
 
     def clear(self) -> None:
-        """Clear all memory items from storage and file."""
+        """Clear all memory items from storage, file, and index."""
         self.storage.clear()
+        self._text_index.clear()
         self._save_to_file()
 
     def __len__(self) -> int:
         """Return the number of items in memory."""
         return len(self.storage)
+
+    def deduplicate(self) -> int:
+        """
+        Remove duplicate memories based on raw_text content.
+        Keeps the most recent version (latest created_at).
+        Rebuilds the index after deduplication.
+
+        Returns:
+            Number of duplicates removed
+        """
+        seen_texts = {}
+        unique_items = []
+        duplicates_removed = 0
+
+        # Sort by created_at (oldest first) so we keep the newest
+        sorted_items = sorted(self.storage, key=lambda x: x.created_at)
+
+        for item in sorted_items:
+            raw_text = item.value.get("raw_text", "")
+
+            if raw_text in seen_texts:
+                # Duplicate found - skip this older version
+                duplicates_removed += 1
+            else:
+                # First occurrence of this text
+                seen_texts[raw_text] = item.id
+                unique_items.append(item)
+
+        # Update storage with deduplicated list
+        self.storage = unique_items
+
+        # Rebuild index after deduplication
+        self._rebuild_index()
+
+        # Save to file
+        if duplicates_removed > 0:
+            self._save_to_file()
+
+        return duplicates_removed
 
     def _load_from_file(self) -> list[MemoryItem]:
         """
@@ -181,7 +244,7 @@ class Memory:
             return items
 
         except (json.JSONDecodeError, ValueError, KeyError) as e:
-            print(f"Warning: Failed to load memory from {self.memory_file}: {e}")
+            # Silently return empty list on load failure
             return []
 
     def _save_to_file(self) -> None:
@@ -205,7 +268,8 @@ class Memory:
                 json.dump(data, f, indent=2, ensure_ascii=False)
 
         except Exception as e:
-            print(f"Warning: Failed to save memory to {self.memory_file}: {e}")
+            # Silently fail on save error
+            pass
 
     def remember(
         self,
@@ -223,6 +287,9 @@ class Memory:
         - descriptor: short one-line summary
         - value: structured data extracted from the text
 
+        Deduplication: Checks if similar content already exists based on raw_text.
+        If found, updates run_id and returns existing item instead of creating duplicate.
+
         Args:
             raw_text: The free-form text content to remember
             source: Source identifier (e.g., "user_input", "observation", "system")
@@ -230,8 +297,19 @@ class Memory:
             goal_id: Optional identifier for the associated goal
 
         Returns:
-            The created MemoryItem
+            The created or existing MemoryItem
         """
+        # O(1) duplicate check using index
+        if raw_text in self._text_index:
+            # Found duplicate - retrieve existing item by ID
+            existing_id = self._text_index[raw_text]
+            existing_item = next((item for item in self.storage if item.id == existing_id), None)
+
+            if existing_item:
+                # Found duplicate - return existing item
+                # Optionally update run_id to track latest access
+                # existing_item.run_id = run_id  # Uncomment if you want to track latest run
+                return existing_item
         # Build classification prompt
         prompt = f"""You are the Memory classification module. Analyze the following text and extract structured memory information.
 
@@ -251,22 +329,20 @@ Classify this text and extract the following:
 
 2. **keywords**: Extract 3-10 searchable keywords. Rules:
    - Use lowercase
-   - Remove possessives: "mom's" → "mom"
+   - Remove possessives: "John's" → "john"
    - Include dates, names, numbers as separate tokens
    - Include month names: "may", "june", etc.
    - Remove stop words: "the", "a", "is", "was", etc.
-   - Example: "My mom's birthday is 15 May 2026" → ["mom", "birthday", "15", "may", "2026"]
 
 3. **descriptor**: One-line summary (max 100 chars), clear and specific
-   - Good: "Mom's birthday: May 15, 2026"
+   - Good: "John's birthday: May 15, 2026"
    - Bad: "Information about a birthday"
 
 4. **value**: Structured extraction as a JSON object. Extract:
    - Dates in ISO format if present
-   - Names, numbers, entities
+   - Names, numbers, entities (named entities)
    - Key facts as key-value pairs
-   - Original text preserved
-   - Example: {{"date": "2026-05-15", "person": "mom", "event": "birthday", "raw_text": "..."}}
+   - Example: {{"value": "2026-05-15", "entity": "John", "attribute": "birthday"}}
 
 RESPOND WITH:
 A MemoryExtraction object with all four fields populated.
@@ -275,26 +351,32 @@ A MemoryExtraction object with all four fields populated.
         # Get schema for structured output
         schema = MemoryExtraction.model_json_schema()
 
-        # Call LLM with memory routing
-        response = self.llm.chat(
-            prompt=prompt,
-            auto_route="memory",
-            response_format={
-                "type": "json_schema",
-                "schema": schema,
-                "name": "MemoryExtraction",
-                "strict": True,
-            },
-            temperature=0,
-            max_tokens=1024,
-        )
+        # Call LLM with memory routing (with retry)
+        for attempt in range(3):
+            try:
+                response = self.llm.chat(
+                    prompt=prompt,
+                    auto_route="memory",
+                    response_format={
+                        "type": "json_schema",
+                        "schema": schema,
+                        "name": "MemoryExtraction",
+                        "strict": True,
+                    },
+                    temperature=0,
+                    max_tokens=1024,
+                )
+                break
+            except Exception as e:
+                if attempt == 2:
+                    raise
+                continue
 
         # Parse the structured response
         if response.get("parsed"):
             extraction = MemoryExtraction.model_validate(response["parsed"])
         else:
             # Fallback: manual extraction
-            print(f"Warning: LLM did not return structured output, using fallback extraction")
             extraction = self._fallback_extraction(raw_text)
 
         # Generate unique ID

@@ -1,3 +1,4 @@
+import asyncio
 import sys
 from pathlib import Path
 
@@ -12,6 +13,9 @@ from mcp import ClientSession
 
 # Artifact threshold: payloads larger than this get stored as artifacts
 ARTIFACT_THRESHOLD_BYTES = 4096  # 4 KB
+
+# MCP tool call timeout (seconds)
+MCP_TOOL_TIMEOUT = 120  # 2 minutes - generous for fetch_url browser launch
 
 
 class Action:
@@ -57,11 +61,29 @@ class Action:
                 )
                 return error_msg, None
         
-        # Behavior 3: Real MCP dispatch
+        # Behavior 3: Real MCP dispatch with timeout
         try:
-            result = await session.call_tool(tool_call.name, arguments=tool_call.arguments or {})
+            # Wrap call_tool in timeout to prevent indefinite hangs
+            result = await asyncio.wait_for(
+                session.call_tool(tool_call.name, arguments=tool_call.arguments or {}),
+                timeout=MCP_TOOL_TIMEOUT
+            )
+
             # Extract text from first content block (standard MCP pattern from agent5.py)
-            result_text = result.content[0].text if result.content else ""
+            # MCP returns content blocks as objects with .text attribute
+            if result.content:
+                result_text = result.content[0].text
+            else:
+                result_text = ""
+
+        except asyncio.TimeoutError:
+            # Tool call timed out
+            error_msg = (
+                f"Tool execution timed out after {MCP_TOOL_TIMEOUT}s: "
+                f"{tool_call.name}({tool_call.arguments})\n"
+                f"The MCP tool did not respond within the timeout period."
+            )
+            return error_msg, None
 
         except Exception as e:
             # Tool execution failed

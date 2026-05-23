@@ -34,6 +34,7 @@ class Goal(BaseModel):
 class Observation(BaseModel):
     goals: list[Goal]
     next_unfinished: Goal | None
+    final_answer: str | None  # Populated when all goals are done
 
 
 class ToolCall(BaseModel):
