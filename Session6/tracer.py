@@ -83,12 +83,13 @@ User Prompt: {self.user_prompt}
         self._log(f'                   keywords: {json.dumps(keywords)}')
         self._log('')
 
-    def memory_read(self, num_hits: int) -> None:
+    def memory_read(self, num_hits: int, keywords: list[str] = None) -> None:
         """
         Log a memory.read() call.
 
         Args:
             num_hits: Number of memory hits retrieved
+            keywords: Keywords from the hits
         """
         if num_hits == 0:
             self._log('[memory.read]    no relevant memories found')
@@ -96,6 +97,9 @@ User Prompt: {self.user_prompt}
             self._log('[memory.read]    retrieved 1 memory hit')
         else:
             self._log(f'[memory.read]    retrieved {num_hits} memory hits')
+
+        if keywords and num_hits > 0:
+            self._log(f'                 keywords: {json.dumps(keywords)}')
 
     def iteration_start(self, iteration: int) -> None:
         """
@@ -175,20 +179,13 @@ User Prompt: {self.user_prompt}
         if success:
             if artifact_id:
                 self._log(f'[action]        → ok (artifact: {artifact_id})')
-                if descriptor:
-                    # Truncate descriptor
-                    display_desc = descriptor if len(descriptor) <= 60 else descriptor[:57] + "..."
-                    self._log(f'                {display_desc}')
-            elif message:
-                # Truncate message
-                display_msg = message if len(message) <= 60 else message[:57] + "..."
-                self._log(f'[action]        → ok: {display_msg}')
             else:
                 self._log(f'[action]        → ok')
-                if descriptor:
-                    # Truncate descriptor
-                    display_desc = descriptor if len(descriptor) <= 60 else descriptor[:57] + "..."
-                    self._log(f'                {display_desc}')
+
+            # Always show descriptor if available
+            if descriptor:
+                display_desc = descriptor if len(descriptor) <= 60 else descriptor[:57] + "..."
+                self._log(f'                {display_desc}')
         else:
             # Show error message
             display_msg = message if len(message) <= 60 else message[:57] + "..."

@@ -16,7 +16,6 @@ state/
 sandbox/
 
 # IDE
-.vscode/
 .idea/
 *.swp
 *.swo

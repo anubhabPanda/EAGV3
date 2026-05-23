@@ -52,8 +52,8 @@ def build_decision_prompt(
                 # Try to decode as text
                 content = raw_bytes.decode('utf-8', errors='replace')
                 # Truncate very long content
-                if len(content) > 10000:
-                    content = content[:10000] + f"\n\n[...truncated, {len(raw_bytes)} bytes total]"
+                # if len(content) > 10000:
+                #     content = content[:10000] + f"\n\n[...truncated, {len(raw_bytes)} bytes total]"
                 attached_section += f"--- Artifact {artifact_id} ---\n{content}\n\n"
             except Exception:
                 attached_section += f"--- Artifact {artifact_id} ---\n[Binary content, {len(raw_bytes)} bytes]\n\n"
@@ -65,21 +65,18 @@ def build_decision_prompt(
     history_section = "ACTION HISTORY:\n"
     if history:
         for i, entry in enumerate(history[-10:], 1):  # Last 10 entries
-            role = entry.get("role", "unknown")
-            content = entry.get("content", "")
-            tool_calls = entry.get("tool_calls", [])
-            tool_name = entry.get("tool_name", "")
-            
-            if role == "user":
-                history_section += f"{i}. [USER] {content}\n"
-            elif role == "assistant":
-                if tool_calls:
-                    for tc in tool_calls:
-                        history_section += f"{i}. [TOOL CALL] {tc['name']}({json.dumps(tc.get('arguments', {}))})\n"
-                elif content:
-                    history_section += f"{i}. [ANSWER] {content[:200]}{'...' if len(content) > 200 else ''}\n"
-            elif role == "tool":
-                history_section += f"{i}. [TOOL RESULT → {tool_name}] {content[:150]}{'...' if len(content) > 150 else ''}\n"
+            kind = entry.get("kind", "unknown")
+            iter = entry.get("iter", "")
+            tool_arguments = entry.get("arguments", [])
+            tool_name = entry.get("tool", "")
+            artifact_id = entry.get("artifact_id", "")
+            goal_id = entry.get("goal_id", "")
+            result_descriptor = entry.get("result_descriptor", "")
+            text = entry.get("text", "")
+            if kind == "action":
+                history_section += f"ITERATION {iter} GOAL:{goal_id} RESPONSE TYPE:{kind} TOOL NAME:{tool_name} TOOL ARGUMENTS: {tool_arguments} RESPONSE TEXT: {result_descriptor} ARTIFACT ID:{artifact_id}\n" 
+            else:
+                history_section += f"ITERATION {iter} GOAL {goal_id} RESPONSE TYPE: {kind} RESPONSE TEXT: {text} \n" 
     else:
         history_section += "(No prior actions)\n"
     history_section += "\n"
@@ -129,6 +126,9 @@ INTERNAL SELF-CHECKS (verify before output):
   If a prior tool call already fetched/created what's needed, don't repeat it.
   If extraction is needed and artifacts are attached, extract NOW (don't defer).
 
+□ **Tool call check**: Always call the fetch_url tool to read content from URLs in memory or web_search tool results.
+DO NOT rely on snippets from web search results to arrive at an answer.  
+  
 □ **Artifact availability check**: Does the goal reference an artifact ID in ATTACHED ARTIFACTS?
   If yes, the bytes are RIGHT THERE in the prompt. Read and process them.
   DO NOT call read_file() or fetch_url() with the artifact ID.
@@ -245,18 +245,25 @@ class Decision:
         # print("\n--- DECISION SYSTEM PROMPT ---")
         # print(system_prompt + "\n" + user_prompt)
 
-        # Call LLM Gateway V3 with decision routing and tool use
+        # Call LLM Gateway V3 with decision routing and tool use (with retry)
         # When tools are provided, the gateway returns native tool_calls
         # When no tool is called, we want structured DecisionOutput with answer
-        response = self.llm.chat(
-            prompt=user_prompt,
-            system=system_prompt,
-            auto_route="decision",
-            tools=mcp_tools,
-            tool_choice="auto",
-            temperature=0,
-            max_tokens=2048,
-        )
+        for attempt in range(3):
+            try:
+                response = self.llm.chat(
+                    prompt=user_prompt,
+                    system=system_prompt,
+                    auto_route="decision",
+                    tools=mcp_tools,
+                    tool_choice="auto",
+                    temperature=0,
+                    max_tokens=2048,
+                )
+                break
+            except Exception as e:
+                if attempt == 2:
+                    raise
+                continue
 
         # Parse response: tool_calls OR text
         tool_calls = response.get("tool_calls") or []

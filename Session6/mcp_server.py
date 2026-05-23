@@ -177,7 +177,10 @@ def web_search(query: str, max_results: int = 5) -> list[dict]:
 
 @mcp.tool()
 async def fetch_url(url: str, timeout: int = 20) -> dict:
-    """Fetch clean markdown from a URL via crawl4ai (headless Chromium). Example: fetch_url("https://example.com")."""
+    """Fetch clean markdown from a URL via crawl4ai (headless Chromium). 
+    After a web search, this tool MUST be used to read the content from URLs. 
+    Example: fetch_url("https://en.wikipedia.org/wiki/MCP").
+    Always call this tool after a web search to fetch the actual content, as search results only contain snippets."""
     return await _crawl4ai_fetch(url)
 
 
@@ -292,4 +295,7 @@ def edit_file(path: str, find: str, replace: str, replace_all: bool = False) -> 
 
 
 if __name__ == "__main__":
-    mcp.run(transport="stdio")
+    mcp.settings.host = "127.0.0.1"
+    mcp.settings.port = 8000
+    mcp.run(transport="streamable-http")
+

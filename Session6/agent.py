@@ -1,9 +1,11 @@
 import asyncio
 import sys
+import os
 from pathlib import Path
 from contextlib import asynccontextmanager
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
+from mcp.client.streamable_http import streamable_http_client
 from services.decision_service import Decision
 from services.memory_service import Memory
 from services.perception_service import Perception
@@ -14,6 +16,10 @@ from tracer import AgentTracer
 import uuid
 from schemas import Goal
 import threading
+
+# MCP Transport Configuration
+MCP_TRANSPORT = os.environ.get("MCP_TRANSPORT", "http")  # stdio or http
+MCP_HTTP_URL = os.environ.get("MCP_HTTP_URL", "http://127.0.0.1:8000/mcp")
 
 
 def _stderr_reader(stderr_stream, tracer: AgentTracer):
@@ -39,33 +45,46 @@ def _stderr_reader(stderr_stream, tracer: AgentTracer):
 @asynccontextmanager
 async def mcp_session(tracer: AgentTracer = None):
     """
-    Context manager for MCP server connection with stderr capture.
+    Context manager for MCP server connection.
+
+    Supports two transports:
+    - stdio: Local subprocess (default)
+    - http: Remote HTTP server
+
+    Set MCP_TRANSPORT=http and MCP_HTTP_URL to use HTTP transport.
 
     Args:
         tracer: Optional tracer to capture MCP tool logs (stderr)
     """
-    server_params = StdioServerParameters(
-        command=sys.executable,
-        args=[str(Path(__file__).with_name("mcp_server.py"))],
-    )
+    if MCP_TRANSPORT == "http":
+        # HTTP transport - connect to remote server
+        async with streamable_http_client(MCP_HTTP_URL) as (read, write, _):
+            async with ClientSession(read, write) as session:
+                await session.initialize()
+                yield session
+    else:
+        # stdio transport - launch subprocess
+        server_params = StdioServerParameters(
+            command=sys.executable,
+            args=[str(Path(__file__).with_name("mcp_server.py"))],
+        )
 
-    async with stdio_client(server_params) as (read, write):
-        # Capture stderr from MCP server process
-        # stdio_client returns the process object which has stderr
-        if tracer and hasattr(read, '_process'):
-            process = read._process
-            if process and process.stderr:
-                # Start thread to read stderr and log it
-                stderr_thread = threading.Thread(
-                    target=_stderr_reader,
-                    args=(process.stderr, tracer),
-                    daemon=True
-                )
-                stderr_thread.start()
+        async with stdio_client(server_params) as (read, write):
+            # Capture stderr from MCP server process
+            if tracer and hasattr(read, '_process'):
+                process = read._process
+                if process and process.stderr:
+                    # Start thread to read stderr and log it
+                    stderr_thread = threading.Thread(
+                        target=_stderr_reader,
+                        args=(process.stderr, tracer),
+                        daemon=True
+                    )
+                    stderr_thread.start()
 
-        async with ClientSession(read, write) as session:
-            await session.initialize()
-            yield session
+            async with ClientSession(read, write) as session:
+                await session.initialize()
+                yield session
 
 
 async def load_tools(session: ClientSession) -> list:
@@ -130,7 +149,8 @@ async def run(query: str, tracer: AgentTracer = None, run_id: str = None) -> str
 
             # Memory read
             hits = memory.read(query, history)
-            tracer.memory_read(len(hits))
+            keywords = list(set([kw for hit in hits for kw in hit.keywords]))
+            tracer.memory_read(len(hits), keywords=keywords)
 
             # Perception
             obs = perception.observe(query, hits, history, prior_goals, run_id)
@@ -192,13 +212,40 @@ async def run(query: str, tracer: AgentTracer = None, run_id: str = None) -> str
             is_error = "error" in result_text.lower() or "failed" in result_text.lower()
 
             # Create descriptor for the result
-            descriptor = result_text[:200] if len(result_text) <= 200 else result_text[:197] + "..."
+            # Try to extract meaningful text from JSON responses
+            descriptor = result_text
+            try:
+                import json
+                parsed = json.loads(result_text)
+                if isinstance(parsed, dict):
+                    # Extract text field if available
+                    if "text" in parsed:
+                        descriptor = parsed["text"]
+                    elif "title" in parsed and "snippet" in parsed:
+                        descriptor = f"{parsed['title']}: {parsed['snippet']}"
+                    elif "content" in parsed:
+                        descriptor = parsed["content"]
+                    else:
+                        descriptor = json.dumps(parsed, indent=2)
+                elif isinstance(parsed, list) and len(parsed) > 0:
+                    # Show first item
+                    first = parsed[0]
+                    if isinstance(first, dict) and "title" in first:
+                        descriptor = f"{first.get('title', '')}: {first.get('snippet', first.get('url', ''))}"
+                    else:
+                        descriptor = json.dumps(parsed[:3], indent=2)
+            except:
+                pass
+
+            # Truncate
+            if len(descriptor) > 200:
+                descriptor = descriptor[:197] + "..."
 
             tracer.action_result(
                 success=not is_error,
                 message=result_text if is_error else "",
                 artifact_id=art_id,
-                descriptor=descriptor if not is_error else ""
+                descriptor=descriptor
             )
 
             # Record outcome in memory

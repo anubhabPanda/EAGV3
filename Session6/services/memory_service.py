@@ -351,19 +351,26 @@ A MemoryExtraction object with all four fields populated.
         # Get schema for structured output
         schema = MemoryExtraction.model_json_schema()
 
-        # Call LLM with memory routing
-        response = self.llm.chat(
-            prompt=prompt,
-            auto_route="memory",
-            response_format={
-                "type": "json_schema",
-                "schema": schema,
-                "name": "MemoryExtraction",
-                "strict": True,
-            },
-            temperature=0,
-            max_tokens=1024,
-        )
+        # Call LLM with memory routing (with retry)
+        for attempt in range(3):
+            try:
+                response = self.llm.chat(
+                    prompt=prompt,
+                    auto_route="memory",
+                    response_format={
+                        "type": "json_schema",
+                        "schema": schema,
+                        "name": "MemoryExtraction",
+                        "strict": True,
+                    },
+                    temperature=0,
+                    max_tokens=1024,
+                )
+                break
+            except Exception as e:
+                if attempt == 2:
+                    raise
+                continue
 
         # Parse the structured response
         if response.get("parsed"):
