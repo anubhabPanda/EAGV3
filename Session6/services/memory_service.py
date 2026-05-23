@@ -67,7 +67,7 @@ class Memory:
         query: str,
         history: list[dict],
         kinds: list[str] | None = None,
-        top_k: int = 8
+        top_k: int = 3
     ) -> list[MemoryItem]:
         """
         Read relevant memory items based on keyword overlap.
@@ -83,7 +83,7 @@ class Memory:
             history: Conversation history (list of message dicts)
             kinds: Optional list of memory kinds to filter by 
                    (e.g., ["fact", "preference", "tool_outcome", "scratchpad"])
-            top_k: Number of top results to return (default: 8)
+            top_k: Number of top results to return (default: 3)
         
         Returns:
             List of top-k MemoryItem objects ranked by relevance

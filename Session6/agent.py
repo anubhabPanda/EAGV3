@@ -148,7 +148,7 @@ async def run(query: str, tracer: AgentTracer = None, run_id: str = None) -> str
             tracer.iteration_start(it)
 
             # Memory read
-            hits = memory.read(query, history)
+            hits = memory.read(query, history, top_k=3)
             keywords = list(set([kw for hit in hits for kw in hit.keywords]))
             tracer.memory_read(len(hits), keywords=keywords)
 

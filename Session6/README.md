@@ -1,6 +1,6 @@
-# Session 6: Production-Ready Goal-Oriented Agent
+# Agent with MDAP architecture
 
-A modular, production-ready goal-oriented agent with MCP tool integration, intelligent memory management, and comprehensive tracing. Only tool calling agent can't handle user queries with multiple objectives. So, this agent breaks it down into various components - Memory, Perception, Decision and Action. Perception plans - break down goals and passes one goal at a time to Decision. Decision calls the tools. Clear separation of boundaries and roles with Pydantic contracts
+A modular, production-ready goal-oriented agent with MCP tool integration, intelligent memory management, and comprehensive tracing. Only tool calling agent can't handle user queries with multiple objectives. So, this agent breaks it down into various components - Memory, Perception, Decision and Action. Perception plans - break down goals and passes one goal at a time to Decision. Decision calls the tools. Clear separation of boundaries and roles with Pydantic contracts.
 
 ---
 
@@ -268,5 +268,35 @@ grep "MCP-TOOL" logs/agent_*.log
 
 ## 4 Queries and Terminal Logs
 
----
+### Query A. Shannon Wikipedia (artifact attach test)
+
+```
+Fetch https://en.wikipedia.org/wiki/Claude_Shannon and tell me his
+birth date, death date, and three key contributions to information
+theory.
+```
+### Query B. Tokyo activities with weather constraint (multi-goal plus memory carryover)
+
+```
+Find 3 family-friendly things to do in Tokyo this weekend.
+Check Saturday's weather forecast there and tell me which one
+is most appropriate.
+```
+### Query C. Mom's birthday (durable memory across two runs)
+
+```
+Run 1: My mom's birthday is 15 May 2026. Remember that and give me
+       a calendar reminder for two weeks before and on the day.
+
+Run 2: When is mom's birthday?
+```
+
+### Query D. Asyncio research (multi-source synthesis)
+
+```
+Search for 'Python asyncio best practices', read the top 3 results,
+and give me a short numbered list of the advice they agree on.
+```
+
+## Prompt Evaluation
 
