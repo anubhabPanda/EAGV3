@@ -4,15 +4,7 @@ A production-ready RAG (Retrieval Augmented Generation) application for querying
 
 ## DEMO
 
-> **Coming Soon**: Video walkthrough of the One Piece Agent web interface
->
-> _Planned sections:_
-> - Downloading anime wiki pages with `anime_lore_downloader.py`
-> - Indexing documents through the web UI
-> - Asking questions about One Piece lore
-> - Viewing search results and agent responses
-
----
+[Demo Video](https://youtu.be/_m4AFw5rSyg)
 
 ## Queries with Terminal Logs
 
