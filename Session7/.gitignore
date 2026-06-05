@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Agent logs
+logs/
+*.log
+
+# Sandbox files
+sandbox/
+
+# IDE
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+usage.json
+
+*.faiss
+index*.json
+
