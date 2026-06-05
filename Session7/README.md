@@ -625,6 +625,7 @@ Blackbeard, whose real name was Edward Teach (or Thatch), was a notorious Englis
 
 **With RAG**
 ```
+In the One Piece series, the character known as Blackbeard (Marshall D. Teach) was born on August 3rd. His birthplace is identified as the Grand Line, specifically in a location known as Shade Port.
 ```
 ### Query B. Who is Loki and what is his relationship with his father??
 
@@ -637,6 +638,8 @@ In Norse mythology, Loki is a complex trickster god and a member of the Æsir, t
 
 **With RAG**
 ```
+In One Piece, Loki is the Prince of Elbaf, the kingdom of the giants. He is known for his immense size and strength, characteristic of his race. Regarding his relationship with his father, Loki has a strained and complex dynamic; he was betrothed to Lola, a daughter of Big Mom, but he refused the marriage, which led to significant political tension and conflict between the giants of Elbaf and the Big Mom Pirates.
+
 ```
 ### Query C. Who is Ratatoskr?
 
@@ -648,6 +651,7 @@ Ratatoskr is a mythological squirrel in Norse mythology who runs up and down the
 
 **With RAG**
 ```
+There is no character named Ratatoskr in the One Piece manga or anime series. Ratatoskr is a mythological squirrel from Norse mythology who runs up and down the world tree Yggdrasil to carry messages between the eagle perched at the top and the dragon Níðhöggr at the bottom. It is likely a confusion with other characters or a misunderstanding of the series' lore.
 ```
 
 ### Query D. Who is Davy Jones??
@@ -660,6 +664,7 @@ Davy Jones is a figure primarily known in maritime folklore as the malevolent sp
 
 **With RAG**
 ```
+In the One Piece universe, Davy D. Jones is a deceased character identified as a member of the 'Davy Family.' He is often associated with the 'D. Will' alongside figures like Marshall D. Teach and Rocks D. Xebec. While the legendary 'Davy Back Fight' is a pirate game traditionally attributed to a pirate named Davy Jones, the character Davy D. Jones is explicitly documented as a specific individual within the series' lore.
 ```
 ### Query E. What is gyuki and which character is it related to??
 
@@ -671,6 +676,7 @@ Gyuki, also known as the Eight-Tails, is a powerful Tailed Beast from the Naruto
 
 **With RAG**
 ```
+In the One Piece series, Gyuki (often referred to as Ushi-oni) is a mythical creature based on Japanese folklore, specifically a spider-like ox monster. In the context of the series, it is most notably associated with the character Gyukimaru, a monk who guards the Oihagi Bridge in Wano Country. Gyukimaru is revealed to be the transformed form of Onimaru, a loyal fox companion of the legendary samurai Shimotsuki Ushimaru, who took on the identity of a monk to protect the weapons of the fallen samurai of Ringo.
 ```
 
 ## Architecture Overview
