@@ -112,7 +112,7 @@ def get_final_answer(history: list[dict]) -> str:
     return "No answer found."
 
 async def run(query: str, tracer: AgentTracer = None, run_id: str = None) -> str:
-    ensure_llm_gateway()
+    # ensure_llm_gateway()
 
     # Generate run_id if not provided
     if run_id is None:

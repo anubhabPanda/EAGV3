@@ -28,6 +28,7 @@ from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
 from services.artifact_service import ArtifactStore
 from services.memory_service import Memory
+from starlette.middleware.cors import CORSMiddleware
 
 articafts = ArtifactStore()
 memory = Memory()
@@ -163,21 +164,21 @@ async def _crawl4ai_fetch(url: str) -> dict:
     }
 
 
-@mcp.tool()
-def web_search(query: str, max_results: int = 5) -> list[dict]:
-    """Search the web (Tavily primary, DDG fallback). Hard-capped at 5 results. Example: web_search("python asyncio tutorial", 3)."""
-    max_results = max(1, min(max_results, MAX_SEARCH_RESULTS))
-    if os.environ.get("TAVILY_API_KEY") and _under_cap("tavily"):
-        try:
-            results = _tavily_search(query, max_results)
-            if results:
-                _bump("tavily")
-                return results
-        except Exception:
-            _bump("tavily", "errors")
-    results = _ddg_search(query, max_results)
-    _bump("duckduckgo")
-    return results
+# @mcp.tool()
+# def web_search(query: str, max_results: int = 5) -> list[dict]:
+#     """Search the web (Tavily primary, DDG fallback). Hard-capped at 5 results. Example: web_search("python asyncio tutorial", 3)."""
+#     max_results = max(1, min(max_results, MAX_SEARCH_RESULTS))
+#     if os.environ.get("TAVILY_API_KEY") and _under_cap("tavily"):
+#         try:
+#             results = _tavily_search(query, max_results)
+#             if results:
+#                 _bump("tavily")
+#                 return results
+#         except Exception:
+#             _bump("tavily", "errors")
+#     results = _ddg_search(query, max_results)
+#     _bump("duckduckgo")
+#     return results
 
 
 @mcp.tool()
@@ -185,7 +186,8 @@ async def fetch_url(url: str, timeout: int = 20) -> dict:
     """Fetch clean markdown from a URL via crawl4ai (headless Chromium). 
     After a web search, this tool MUST be used to read the content from URLs. 
     Example: fetch_url("https://en.wikipedia.org/wiki/MCP").
-    Always call this tool after a web search to fetch the actual content, as search results only contain snippets."""
+    Always call this tool after a web search to fetch the actual content, as search results only contain snippets.
+    Do not use this tool to search Google. You can directly call this tool with a url to fetch its content but don't use it to search"""
     return await _crawl4ai_fetch(url)
 
 
@@ -382,7 +384,21 @@ def search_knowledge(query: str, k: int = 5) -> list[dict]:
 
 
 if __name__ == "__main__":
+    import uvicorn
+
     mcp.settings.host = "127.0.0.1"
     mcp.settings.port = 8000
-    mcp.run(transport="streamable-http")
+
+    app = mcp.streamable_http_app()
+
+    app = CORSMiddleware(
+        app=app,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+        allow_headers=["*"],
+        expose_headers=["*"],
+    )
+
+    uvicorn.run(app, host="127.0.0.1", port=8000)
 

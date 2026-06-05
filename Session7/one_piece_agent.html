@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>One Piece Anime Agent</title>
     <script>
-    // Inline marked.js minimal parser to avoid CDN/CORS
+    // Inline marked.js minimal parser
     window.marked = {
         parse: function(md) {
             return md
@@ -248,7 +248,7 @@
             </div>
             <div class="control-row">
                 <input type="text" id="queryInput" placeholder="Ask about One Piece (e.g., 'Who is Luffy?')">
-                <button id="askBtn" disabled>🔍 Ask Agent</button>
+                <button id="askBtn">🔍 Ask Agent</button>
             </div>
             <div class="progress-container" id="progressContainer">
                 <div class="progress-bar">
@@ -273,9 +273,73 @@
 
     <script>
         const API_URL = 'http://127.0.0.1:8000/mcp';
-        const SESSION_ID = 'web-session-' + Date.now();
+        let sessionId = null;
         let currentFolder = '';
         let fileStructure = {};
+
+        async function mcpCall(method, params) {
+            // Initialize session if needed
+            if (!sessionId) {
+                const initResp = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json, text/event-stream',
+                        'MCP-Protocol-Version': '2024-11-05'
+                    },
+                    body: JSON.stringify({
+                        jsonrpc: '2.0',
+                        id: 1,
+                        method: 'initialize',
+                        params: {
+                            protocolVersion: '2024-11-05',
+                            capabilities: {},
+                            clientInfo: { name: 'one-piece-agent', version: '1.0.0' }
+                        }
+                    })
+                });
+                sessionId = initResp.headers.get('Mcp-Session-Id') || initResp.headers.get('mcp-session-id');
+                await initResp.text();
+            }
+
+            // Make the actual call
+            const headers = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json, text/event-stream',
+                'MCP-Protocol-Version': '2024-11-05'
+            };
+
+            if (sessionId) {
+                headers['Mcp-Session-Id'] = sessionId;
+            }
+
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                    jsonrpc: '2.0',
+                    id: Date.now(),
+                    method,
+                    params
+                })
+            });
+
+            const text = await response.text();
+            const lines = text.trim().split('\n');
+
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    const data = JSON.parse(line.substring(6));
+                    if (data.result) {
+                        return data.result;
+                    }
+                    if (data.error) {
+                        throw new Error(data.error.message);
+                    }
+                }
+            }
+            throw new Error('No valid response');
+        }
 
         async function loadFolders() {
             try {
@@ -284,41 +348,12 @@
                 async function getFolders(path = '.', prefix = '', depth = 0) {
                     if (depth > 3) return [];
 
-                    const response = await fetch(`${API_URL}`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            jsonrpc: '2.0',
-                            id: Date.now(),
-                            method: 'tools/call',
-                            params: {
-                                name: 'list_dir',
-                                arguments: { path }
-                            }
-                        })
+                    const result = await mcpCall('tools/call', {
+                        name: 'list_dir',
+                        arguments: { path }
                     });
 
-                    const text = await response.text();
-                    const lines = text.trim().split('\n');
-                    let parsed = null;
-
-                    for (const line of lines) {
-                        if (line.startsWith('data: ')) {
-                            const jsonStr = line.substring(6);
-                            try {
-                                const data = JSON.parse(jsonStr);
-                                if (data.result && data.result.content) {
-                                    const resultText = data.result.content[0].text;
-                                    parsed = JSON.parse(resultText);
-                                    break;
-                                }
-                            } catch (e) {}
-                        }
-                    }
-
-                    if (!parsed) return [];
+                    const parsed = JSON.parse(result.content[0].text);
 
                     const folders = [];
                     for (const entry of parsed.entries || []) {
@@ -366,37 +401,11 @@
         }
 
         async function buildFileTree(path) {
-            const response = await fetch(`${API_URL}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    jsonrpc: '2.0',
-                    id: Date.now(),
-                    method: 'tools/call',
-                    params: {
-                        name: 'list_dir',
-                        arguments: { path }
-                    }
-                })
+            const response = await mcpCall('tools/call', {
+                name: 'list_dir',
+                arguments: { path }
             });
-            const text = await response.text();
-            const lines = text.trim().split('\n');
-            let result = null;
-
-            for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                    const jsonStr = line.substring(6);
-                    try {
-                        const data = JSON.parse(jsonStr);
-                        if (data.result && data.result.content) {
-                            result = JSON.parse(data.result.content[0].text);
-                            break;
-                        }
-                    } catch (e) {}
-                }
-            }
+            const result = JSON.parse(response.content[0].text);
 
             const tree = { files: [], folders: {} };
             for (const entry of result.entries) {
@@ -439,37 +448,11 @@
 
         async function loadMarkdownFile(path) {
             try {
-                const response = await fetch(`${API_URL}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        jsonrpc: '2.0',
-                        id: Date.now(),
-                        method: 'tools/call',
-                        params: {
-                            name: 'read_file',
-                            arguments: { path }
-                        }
-                    })
+                const response = await mcpCall('tools/call', {
+                    name: 'read_file',
+                    arguments: { path }
                 });
-                const text = await response.text();
-                const lines = text.trim().split('\n');
-                let content = '';
-
-                for (const line of lines) {
-                    if (line.startsWith('data: ')) {
-                        const jsonStr = line.substring(6);
-                        try {
-                            const data = JSON.parse(jsonStr);
-                            if (data.result && data.result.content) {
-                                content = JSON.parse(data.result.content[0].text).content;
-                                break;
-                            }
-                        } catch (e) {}
-                    }
-                }
+                const content = JSON.parse(response.content[0].text).content;
 
                 // Render markdown in right panel
                 const rightPanel = document.querySelector('.right-panel');
@@ -494,20 +477,9 @@
 
             for (const file of allFiles) {
                 try {
-                    await fetch(`${API_URL}`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            jsonrpc: '2.0',
-                            id: Date.now(),
-                            method: 'tools/call',
-                            params: {
-                                name: 'index_document',
-                                arguments: { path: file.path }
-                            }
-                        })
+                    await mcpCall('tools/call', {
+                        name: 'index_document',
+                        arguments: { path: file.path }
                     });
                     indexed++;
                     const progress = Math.round((indexed / allFiles.length) * 100);
@@ -521,7 +493,6 @@
             setTimeout(() => {
                 progressContainer.style.display = 'none';
                 progressFill.style.width = '0%';
-                document.getElementById('askBtn').disabled = false;
                 btn.disabled = false;
 
                 const responseDiv = document.getElementById('agentResponse');
@@ -542,54 +513,24 @@
             if (!query.trim()) return;
 
             const responseDiv = document.getElementById('agentResponse');
-            responseDiv.innerHTML = '<p class="loading">🤔 Thinking...</p>';
+            responseDiv.innerHTML = '<p class="loading">🤔 Agent is thinking...</p>';
 
             try {
-                // Search knowledge first
-                const searchResponse = await fetch(`${API_URL}?sessionId=${SESSION_ID}`, {
+                // Call the agent API
+                const response = await fetch('http://127.0.0.1:8002/query', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({
-                        jsonrpc: '2.0',
-                        id: Date.now(),
-                        method: 'tools/call',
-                        params: {
-                            name: 'search_knowledge',
-                            arguments: { query, k: 5 }
-                        }
-                    })
+                    body: JSON.stringify({ query })
                 });
-                const text = await searchResponse.text();
-                const lines = text.trim().split('\n');
-                let results = [];
 
-                for (const line of lines) {
-                    if (line.startsWith('data: ')) {
-                        const jsonStr = line.substring(6);
-                        try {
-                            const data = JSON.parse(jsonStr);
-                            if (data.result && data.result.content) {
-                                results = JSON.parse(data.result.content[0].text);
-                                break;
-                            }
-                        } catch (e) {}
-                    }
-                }
+                const data = await response.json();
 
-                let answer = `<h3>📚 Search Results for: "${query}"</h3>`;
-                answer += `<p>Found ${results.length} relevant chunks:</p>`;
-
-                results.forEach((result, idx) => {
-                    answer += `
-                        <div style="border-left: 3px solid #667eea; padding-left: 15px; margin: 15px 0;">
-                            <h4>Result ${idx + 1}</h4>
-                            <p><strong>Source:</strong> ${result.source}</p>
-                            <p><strong>Content:</strong> ${result.chunk_preview.substring(0, 300)}...</p>
-                        </div>
-                    `;
-                });
+                let answer = `<h3>🤖 Agent Response:</h3>`;
+                answer += `<div style="border-left: 3px solid #667eea; padding-left: 15px; margin: 15px 0;">`;
+                answer += `<p>${data.answer.replace(/\n/g, '<br>')}</p>`;
+                answer += `</div>`;
 
                 responseDiv.innerHTML = answer;
             } catch (error) {
