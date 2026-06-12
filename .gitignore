@@ -207,6 +207,7 @@ __marimo__/
 
 *.md
 !README.md
+!Session8/prompts/*.md
 
 .vscode/
 
