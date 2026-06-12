@@ -1,0 +1,10 @@
+mcp[cli]
+httpx
+ddgs
+tavily-python
+crawl4ai
+python-dotenv
+pytest
+pytest-asyncio
+uvicorn>=0.27.0
+starlette>=0.36.0
