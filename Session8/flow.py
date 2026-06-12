@@ -19,6 +19,8 @@ import json
 import sys
 import time
 import uuid
+from datetime import datetime
+from pathlib import Path
 
 import networkx as nx
 
@@ -28,6 +30,9 @@ from persistence import SessionStore
 from recovery import handle_critic_verdict, plan_recovery
 from schemas import AgentResult, NodeState
 from skills import SkillRegistry, run_skill
+from tracer import Session8Tracer
+from dotenv import load_dotenv
+load_dotenv()
 
 MAX_NODES = 60  # hard cap so a Planner loop cannot grow forever
 
@@ -150,13 +155,30 @@ class Graph:
             nid = self.add_node(child_skill, inputs=[src_nid])
             added.append(nid)
 
-        # Critic auto-insertion: place a Critic before each newly-added
-        # child so the child only runs after Critic passes.
-        if src_def.critic and added:
-            for child_nid in list(added):
+        # Critic auto-insertion: when a `critic: true` skill completes,
+        # gate every outgoing edge (to a non-critic child) with a Critic
+        # node. Covers BOTH newly-added dynamic successors AND pre-existing
+        # edges from the initial Planner plan — earlier versions only saw
+        # `added`, so a pre-planned distiller → formatter chain bypassed
+        # the auto-critic entirely (the `critic: true` flag became a no-op
+        # in the common pre-planned case). Reading the graph's actual
+        # outgoing edges makes the flag load-bearing in both shapes.
+        if src_def.critic:
+            child_targets: list[str] = []
+            for child_nid in list(self.g.successors(src_nid)):
+                if self.g.nodes[child_nid].get("skill") == "critic":
+                    continue  # already gated
+                child_targets.append(child_nid)
+            for child_nid in child_targets:
                 self.g.remove_edge(src_nid, child_nid)
+                # Critics need USER_QUERY: without it the critic falls back
+                # to MEMORY HITS for context (and stale hits from prior
+                # sessions can fool the critic into believing the user
+                # asked a completely different question). With USER_QUERY
+                # the critic evaluates against the real ask and not against
+                # whatever happens to be top-of-FAISS.
                 critic_nid = self.add_node(
-                    "critic", inputs=[src_nid],
+                    "critic", inputs=["USER_QUERY", src_nid],
                     metadata={"target": src_nid, "child": child_nid},
                 )
                 self.g.add_edge(critic_nid, child_nid)
@@ -173,9 +195,18 @@ class Executor:
         self.registry = registry or SkillRegistry()
 
     async def run(self, query: str, *, session_id: str | None = None,
-                  resume: bool = False) -> str:
+                  resume: bool = False, tracer: Session8Tracer | None = None) -> str:
         sid = session_id or f"s8-{uuid.uuid4().hex[:8]}"
         store = SessionStore(sid)
+
+        # Create tracer if not provided
+        if tracer is None:
+            log_dir = Path(__file__).parent / "logs"
+            log_dir.mkdir(exist_ok=True)
+            log_filename = f"session_{sid}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+            log_file = log_dir / log_filename
+            tracer = Session8Tracer(enabled=True, log_file=log_file, session_id=sid, query=query)
+
         if resume:
             existing = store.read_graph()
             if existing is None:
@@ -196,18 +227,18 @@ class Executor:
             graph = Graph()
             graph.add_node("planner", inputs=["USER_QUERY"])
 
-        print(f"\n{'═' * 78}\nsession {sid}  ─  query: {query}\n{'═' * 78}")
-        # Read memory ONCE at session start; the same hits flow into every
-        # skill's prompt. The S7 contract is that every cognitive role sees
-        # memory; carrying that forward verbatim here is what makes S7's
-        # indexing investment continue to pay off in S8.
+        # Log session start with memory hits
         memory_hits = memory_svc.read(query) or []
+        tracer.session_start(sid, query, len(memory_hits))
+
+        # Log detailed memory hits
         if memory_hits:
-            print(f"[memory.read] {len(memory_hits)} hit(s) visible to every skill this run")
+            tracer.memory_hits_detail(memory_hits)
+
         try:
             memory_svc.remember(query, source="user_query", run_id=sid)
         except Exception as e:
-            print(f"[memory.remember] skipped: {e!r}")
+            tracer.custom("memory.remember", f"skipped: {e!r}")
 
         formatter_answer: str | None = None
         executed_count = 0
@@ -231,7 +262,7 @@ class Executor:
                 graph.mark(nid, "running")
             store.write_graph(graph.g)
 
-            outcomes = await asyncio.gather(*[self._run_one(nid, graph, sid, query, store, memory_hits)
+            outcomes = await asyncio.gather(*[self._run_one(nid, graph, sid, query, store, memory_hits, tracer)
                                               for nid in ready])
 
             for nid, result, prompt in outcomes:
@@ -246,10 +277,14 @@ class Executor:
                     started_at=time.time() - result.elapsed_s,
                     completed_at=time.time(),
                 ))
-                print(f"[{nid}] {graph.g.nodes[nid]['skill']:18s} "
-                      f"{graph.g.nodes[nid]['status']:8s} "
-                      f"({result.elapsed_s:.1f}s)"
-                      + (f"  err={result.error[:80]}" if result.error else ""))
+
+                # Log node completion with tracer
+                tracer.node_complete(
+                    nid,
+                    graph.g.nodes[nid]["skill"],
+                    graph.g.nodes[nid]["status"],
+                    result.error
+                )
 
                 if result.success:
                     if graph.g.nodes[nid]["skill"] == "critic":
@@ -258,7 +293,12 @@ class Executor:
                                                  critic_fail_cap_hit):
                             continue
                         # verdict == pass: the child is now ready to run.
-                    graph.extend_from(nid, result, registry=self.registry)
+
+                    # Extend graph with successors and log them
+                    added_nodes = graph.extend_from(nid, result, registry=self.registry)
+                    if added_nodes:
+                        tracer.node_successors(nid, added_nodes)
+
                     if graph.g.nodes[nid]["skill"] == "formatter":
                         fa = result.output.get("final_answer")
                         if isinstance(fa, str) and fa.strip():
@@ -271,8 +311,7 @@ class Executor:
                         failed_node_id=nid,
                     )
                     if decision.action == "skip":
-                        print(f"  ↪ {nid} failed ({decision.reason}, "
-                              f"skill={failed_skill}): {decision.note}")
+                        tracer.custom("recovery", f"{nid} skipped ({decision.reason}): {decision.note}")
                         continue
                     # action == "replan"
                     rec_nid = graph.add_node(
@@ -281,8 +320,8 @@ class Executor:
                                   "recovers": nid,
                                   "recovery_reason": decision.reason},
                     )
-                    print(f"  ↪ recovery ({decision.reason}): planner node "
-                          f"{rec_nid} queued for {nid}")
+                    tracer.custom("recovery", f"planner {rec_nid} queued for {nid} ({decision.reason})")
+                    tracer.node_successors(nid, [rec_nid])
 
             store.write_graph(graph.g)
 
@@ -297,26 +336,36 @@ class Executor:
             # Loud surface — see review round-3 #5. Without this the cap
             # firing was invisible and the user would just see a thin
             # formatter answer with no explanation of why.
-            print(f"\n[flow] WARNING: critic-fail cap hit on "
-                  f"{len(critic_fail_cap_hit)} branch(es): "
-                  f"{', '.join(critic_fail_cap_hit)}. "
-                  f"The final answer reflects missing data from these "
-                  f"branches because the Critic rejected the re-planned "
-                  f"output too.")
-        print(f"\n{'═' * 78}\nFINAL: {(formatter_answer or '')[:600]}\n{'═' * 78}\n")
+            warning_msg = (f"critic-fail cap hit on {len(critic_fail_cap_hit)} branch(es): "
+                          f"{', '.join(critic_fail_cap_hit)}")
+            tracer.custom("flow", f"WARNING: {warning_msg}")
+
+        # Log final answer
+        tracer.final_answer(formatter_answer or "")
+        tracer.finalize()
+
+        # Print execution statistics
+        from session_stats import print_session_stats
+        print_session_stats(sid, store)
+
         return formatter_answer or ""
 
     async def _run_one(self, nid: str, graph: Graph, sid: str, query: str,
-                       store: SessionStore, memory_hits: list) -> tuple[str, AgentResult, str]:
+                       store: SessionStore, memory_hits: list,
+                       tracer: Session8Tracer) -> tuple[str, AgentResult, str]:
         skill_name = graph.g.nodes[nid]["skill"]
         skill = self.registry.get(skill_name)
         fr = graph.g.nodes[nid].get("metadata", {}).get("failure_report")
+
+        # Log node start
+        tracer.node_start(nid, skill_name, graph.g.nodes[nid]["inputs"])
+
         store.write_node(NodeState(node_id=nid, skill=skill_name, status="running",
                                    inputs=graph.g.nodes[nid]["inputs"],
                                    started_at=time.time()))
         try:
             result, prompt = await run_skill(skill, nid, graph.g.nodes, sid, query, fr,
-                                             memory_hits=memory_hits)
+                                             memory_hits=memory_hits, tracer=tracer)
         except Exception as e:  # pragma: no cover - dispatcher fault path
             result = AgentResult(success=False, agent_name=skill_name,
                                  error=f"exception: {type(e).__name__}: {e}")
@@ -326,14 +375,110 @@ class Executor:
 
 # ── CLI ──────────────────────────────────────────────────────────────────────
 
+async def interactive_loop() -> None:
+    """
+    Run the Session 8 agent in interactive mode with continuous prompt loop.
+    Each query creates a new session. Sessions are saved and can be resumed later.
+    """
+    from datetime import datetime
+    from pathlib import Path
+
+    # Create logs directory if it doesn't exist
+    log_dir = Path(__file__).parent / "logs"
+    log_dir.mkdir(exist_ok=True)
+
+    # Create log file with timestamp
+    log_filename = f"session8_interactive_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+    log_file = log_dir / log_filename
+
+    print("=" * 80)
+    print("SESSION 8 AGENT - Interactive Mode")
+    print("=" * 80)
+    print("Type your query and press Enter to run the agent.")
+    print("Type 'exit', 'quit', or press Ctrl+C to stop.")
+    print(f"[LOG] Session logs saved to: {log_file}")
+    print("=" * 80)
+    print()
+
+    executor = Executor()
+
+    with open(log_file, 'w', encoding='utf-8') as f:
+        f.write(f"Session 8 Interactive Log - {datetime.now()}\n")
+        f.write("=" * 80 + "\n\n")
+
+    while True:
+        try:
+            # Get user input
+            user_query = input("You: ").strip()
+
+            # Check for exit commands
+            if user_query.lower() in ["exit", "quit"]:
+                print("\nGoodbye!")
+                break
+
+            # Skip empty queries
+            if not user_query:
+                continue
+
+            print()  # Add spacing before agent output
+
+            # Generate session ID for this query
+            sid = f"s8-{uuid.uuid4().hex[:8]}"
+
+            # Log the query
+            with open(log_file, 'a', encoding='utf-8') as f:
+                f.write(f"\n{'-' * 80}\n")
+                f.write(f"Session: {sid}\n")
+                f.write(f"Time: {datetime.now()}\n")
+                f.write(f"Query: {user_query}\n")
+                f.write(f"{'-' * 80}\n\n")
+
+            # Run the agent
+            result = await executor.run(user_query, session_id=sid)
+
+            # Log the result
+            with open(log_file, 'a', encoding='utf-8') as f:
+                f.write(f"Result: {result}\n")
+                f.write(f"Session saved to: state/sessions/{sid}/\n\n")
+
+            print()  # Add spacing after agent output
+            print("─" * 80)
+            print()
+
+        except KeyboardInterrupt:
+            print("\n\nGoodbye!")
+            break
+        except Exception as e:
+            print(f"\n[ERROR] Error: {e}")
+            import traceback
+            traceback.print_exc()
+
+            # Log the error
+            with open(log_file, 'a', encoding='utf-8') as f:
+                f.write(f"ERROR: {e}\n")
+                f.write(traceback.format_exc())
+                f.write("\n")
+
+            print("-" * 80)
+            print()
+
+
 def main() -> None:
     args = sys.argv[1:]
+
+    # Check for interactive mode flag
+    if args and args[0] == "--interactive":
+        asyncio.run(interactive_loop())
+        return
+
+    # Check for resume mode
     resume_sid: str | None = None
     if args and args[0] == "--resume":
         resume_sid = args[1] if len(args) > 1 else None
         query = " ".join(args[2:])
     else:
         query = " ".join(args) or "Say hello in one short sentence."
+
     asyncio.run(Executor().run(query, session_id=resume_sid, resume=bool(resume_sid)))
 
 

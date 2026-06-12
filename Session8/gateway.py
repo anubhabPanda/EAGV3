@@ -28,7 +28,7 @@ import httpx
 import os as _os
 GATEWAY_V8_DIR = Path(
     _os.environ.get("EAGV3_GATEWAY_DIR")
-    or (Path(__file__).resolve().parent.parent / "gateway")
+    or r"D:\2026\EAG3\resources\llm_gatewayV8"
 ).resolve()
 GATEWAY_URL = "http://localhost:8108"
 
@@ -69,14 +69,40 @@ def ensure_gateway() -> None:
 # own `schemas.py`, which would shadow ours if we put it on the path.
 import importlib.util as _importlib_util
 
-_client_path = GATEWAY_V8_DIR / "client.py"
-if _client_path.exists():
+_LLM_CLASS = None  # cached LLM class after first load
+
+
+def _load_llm_client_class():
+    """Lazy-load the LLM client class from the gateway directory."""
+    global _LLM_CLASS
+    if _LLM_CLASS is not None:
+        return _LLM_CLASS
+
+    _client_path = GATEWAY_V8_DIR / "client.py"
+    if not _client_path.exists():
+        raise RuntimeError(
+            f"Gateway V8 client unavailable. Expected client.py at {_client_path}. "
+            "Build llm_gatewayV8 (Session 8 prerequisite) before running S8 code."
+        )
+
     _spec = _importlib_util.spec_from_file_location("llm_gatewayV8_client", _client_path)
     _mod = _importlib_util.module_from_spec(_spec)
     _spec.loader.exec_module(_mod)
-    LLM = _mod.LLM
-else:
-    LLM = None  # populated once V8 is built; importers should ensure_gateway() first
+    _LLM_CLASS = _mod.LLM
+    return _LLM_CLASS
+
+
+class LLM:
+    """Lazy-loading wrapper for the gateway LLM client.
+
+    This class acts as a proxy that loads the actual LLM client from the
+    gateway directory on first use, avoiding import-time failures when
+    client.py doesn't exist yet.
+    """
+    def __new__(cls):
+        # Return an instance of the actual LLM class from the gateway
+        actual_llm_class = _load_llm_client_class()
+        return actual_llm_class()
 
 
 def embed(text: str, task_type: str = "retrieval_document") -> dict:
@@ -88,10 +114,6 @@ def embed(text: str, task_type: str = "retrieval_document") -> dict:
     vectors, so callers should treat the model as a project-level constant.
     """
     ensure_gateway()
-    if LLM is None:
-        raise RuntimeError(
-            "Gateway V8 client unavailable. Confirm llm_gatewayV8/client.py exists."
-        )
     return LLM().embed(text, task_type=task_type)
 
 

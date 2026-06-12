@@ -250,7 +250,8 @@ def tool_payload(tool_names: list[str]) -> list[dict] | None:
 async def run_skill(skill: Skill, node_id: str, graph_nodes,
                     session_id: str, query: str,
                     failure_report: str | None,
-                    *, memory_hits: list | None = None) -> tuple[AgentResult, str]:
+                    *, memory_hits: list | None = None,
+                    tracer = None) -> tuple[AgentResult, str]:
     """Dispatch one node. Returns (result, rendered_prompt).
 
     `memory_hits` is the FAISS-ranked MemoryItem list captured once at
@@ -262,7 +263,9 @@ async def run_skill(skill: Skill, node_id: str, graph_nodes,
     sandbox_executor bypasses the gateway: it picks the `code` field out of
     its upstream coder node and runs sandbox.run_python directly. All other
     skills are LLM-backed and route through the V8 gateway with
-    agent=<skill_name> so agent_routing.yaml + cost-by-agent kick in."""
+    agent=<skill_name> so agent_routing.yaml + cost-by-agent kick in.
+
+    `tracer` is the Session8Tracer instance for logging tool calls."""
     resolved = resolve_inputs(graph_nodes[node_id]["inputs"], graph_nodes, query)
     # Per-node sub-question from the Planner's `metadata.question`. Travels
     # into the rendered prompt as a QUESTION: block so a fan-out worker
@@ -308,6 +311,8 @@ async def run_skill(skill: Skill, node_id: str, graph_nodes,
             provider_pin=skill.provider_pin,
             max_tokens=skill.max_tokens,
             temperature=skill.temperature,
+            node_id=node_id,
+            tracer=tracer,
         )
     else:
         reply = await asyncio.to_thread(

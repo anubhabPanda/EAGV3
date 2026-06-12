@@ -1,16 +1,25 @@
 """
-MCP server for EAGV3 Session 6.
+MCP server for EAGV3 Session 8.
 
-Nine tools, stdio transport:
+Eleven tools, HTTP transport (Streamable HTTP with SSE):
     web_search, fetch_url, get_time, currency_convert,
-    read_file, list_dir, create_file, update_file, edit_file
+    read_file, list_dir, create_file, update_file, edit_file,
+    index_document, search_knowledge
 
-web_search:  Tavily primary, DuckDuckGo fallback. Hard-capped at 5 results.
-fetch_url:   crawl4ai only — clean markdown via headless Chromium.
+web_search:        Tavily primary, DuckDuckGo fallback. Hard-capped at 5 results.
+fetch_url:         crawl4ai only. Clean markdown via headless Chromium.
+index_document:    Chunks a sandbox file or artifact and writes the chunks as
+                   fact records into Memory, where they become FAISS-searchable.
+search_knowledge:  Vector search over indexed facts. Same backend as
+                   memory.read but exposed to the model as a tool.
+
 Usage for tavily and duckduckgo is logged to ./usage.json with monthly
 rollover and a soft cap of 950/1000 on Tavily.
 
-File tools are sandboxed under ./sandbox/. Run:  python mcp_server.py
+File tools are sandboxed under ./sandbox/.
+
+Default port: 8008 (http://127.0.0.1:8008/mcp)
+Run: python mcp_server.py
 """
 
 from __future__ import annotations
@@ -26,18 +35,19 @@ import httpx
 from ddgs import DDGS
 from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
-from services.artifact_service import ArtifactStore
-from services.memory_service import Memory
-from starlette.middleware.cors import CORSMiddleware
 
-articafts = ArtifactStore()
-memory = Memory()
+# Same-directory imports for the Memory and Artifact services so that the
+# new index_document / search_knowledge tools can delegate into them.
+import sys
+sys.path.insert(0, str(Path(__file__).parent))
+import artifacts as _artifacts  # noqa: E402
+import memory as _memory  # noqa: E402
 
 MAX_SEARCH_RESULTS = 5  # hard cap — Tavily prices per result
 
 load_dotenv(Path(__file__).parent / ".env")
 
-mcp = FastMCP("eagv3-s6-server")
+mcp = FastMCP("eagv3-s8-server")
 
 SANDBOX = Path(__file__).parent / "sandbox"
 SANDBOX.mkdir(exist_ok=True)
@@ -97,12 +107,12 @@ def _tavily_search(query: str, max_results: int) -> list[dict]:
     from tavily import TavilyClient
 
     client = TavilyClient(os.environ["TAVILY_API_KEY"])
-    resp = client.search(query=query, max_results=max_results, search_depth="advanced", exclude_domains=["youtube.com"])
+    resp = client.search(query=query, max_results=max_results, search_depth="advanced")
     return [
         {
             "title": r.get("title", ""),
             "url": r.get("url", ""),
-            # "snippet": r.get("content", ""),
+            "snippet": r.get("content", ""),
         }
         for r in resp.get("results", [])
     ]
@@ -164,30 +174,26 @@ async def _crawl4ai_fetch(url: str) -> dict:
     }
 
 
-# @mcp.tool()
-# def web_search(query: str, max_results: int = 5) -> list[dict]:
-#     """Search the web (Tavily primary, DDG fallback). Hard-capped at 5 results. Example: web_search("python asyncio tutorial", 3)."""
-#     max_results = max(1, min(max_results, MAX_SEARCH_RESULTS))
-#     if os.environ.get("TAVILY_API_KEY") and _under_cap("tavily"):
-#         try:
-#             results = _tavily_search(query, max_results)
-#             if results:
-#                 _bump("tavily")
-#                 return results
-#         except Exception:
-#             _bump("tavily", "errors")
-#     results = _ddg_search(query, max_results)
-#     _bump("duckduckgo")
-#     return results
+@mcp.tool()
+def web_search(query: str, max_results: int = 5) -> list[dict]:
+    """Search the web (Tavily primary, DDG fallback). Hard-capped at 5 results. Example: web_search("python asyncio tutorial", 3)."""
+    max_results = max(1, min(max_results, MAX_SEARCH_RESULTS))
+    if os.environ.get("TAVILY_API_KEY") and _under_cap("tavily"):
+        try:
+            results = _tavily_search(query, max_results)
+            if results:
+                _bump("tavily")
+                return results
+        except Exception:
+            _bump("tavily", "errors")
+    results = _ddg_search(query, max_results)
+    _bump("duckduckgo")
+    return results
 
 
 @mcp.tool()
 async def fetch_url(url: str, timeout: int = 20) -> dict:
-    """Fetch clean markdown from a URL via crawl4ai (headless Chromium). 
-    After a web search, this tool MUST be used to read the content from URLs. 
-    Example: fetch_url("https://en.wikipedia.org/wiki/MCP").
-    Always call this tool after a web search to fetch the actual content, as search results only contain snippets.
-    Do not use this tool to search Google. You can directly call this tool with a url to fetch its content but don't use it to search"""
+    """Fetch clean markdown from a URL via crawl4ai (headless Chromium). Example: fetch_url("https://example.com")."""
     return await _crawl4ai_fetch(url)
 
 
@@ -308,10 +314,13 @@ def edit_file(path: str, find: str, replace: str, replace_all: bool = False) -> 
         "size_bytes": p.stat().st_size,
     }
 
+
+# ── document indexing (Session 7) ───────────────────────────────────────────
+
 def _read_for_index(path: str) -> tuple[str, str]:
     """Return (content, source_label) for an indexable file or artifact."""
     if path.startswith("art:"):
-        return articafts.get_bytes(path).decode("utf-8", errors="replace"), path
+        return _artifacts.get_bytes(path).decode("utf-8", errors="replace"), path
     p = _safe(path)
     return p.read_text(encoding="utf-8"), f"sandbox:{path}"
 
@@ -345,7 +354,7 @@ def index_document(path: str, chunk_size: int = 400, overlap: int = 80) -> dict:
     for i, chunk in enumerate(chunks):
         preview = chunk[:120].replace("\n", " ")
         descriptor = f"[{source} chunk {i+1}/{len(chunks)}] {preview}"
-        memory.add_fact(
+        _memory.add_fact(
             descriptor=descriptor,
             value={
                 "chunk": chunk,
@@ -369,28 +378,31 @@ def index_document(path: str, chunk_size: int = 400, overlap: int = 80) -> dict:
 @mcp.tool()
 def search_knowledge(query: str, k: int = 5) -> list[dict]:
     """Vector search over indexed `fact` chunks. Returns up to k ranked chunks with provenance. Call this rather than re-fetching URLs or re-reading source files whenever Memory already contains indexed chunks for the topic — that is the whole point of having indexed the corpus. Example: search_knowledge("authentication flow", 5)."""
-    items = memory.read(query, kinds=["fact"], top_k=k)
+    items = _memory.read(query, kinds=["fact"], top_k=k)
     return [
         {
             "id": item.id,
             "descriptor": item.descriptor,
             "source": item.source,
-            "chunk_preview": (item.value.get("chunk") or ""),
+            "chunk": item.value.get("chunk") or "",
             "metadata": {k_: v for k_, v in item.value.items() if k_ != "chunk"},
         }
         for item in items
     ]
 
 
-
 if __name__ == "__main__":
     import uvicorn
+    from starlette.middleware.cors import CORSMiddleware
 
+    # Default to HTTP transport for Session 8 (like Session 7)
+    # Port 8008 to avoid conflict with Session 7 (8000) and gateway (8108)
     mcp.settings.host = "127.0.0.1"
-    mcp.settings.port = 8000
+    mcp.settings.port = 8008
 
     app = mcp.streamable_http_app()
 
+    # Add CORS middleware for browser compatibility
     app = CORSMiddleware(
         app=app,
         allow_origins=["*"],
@@ -400,5 +412,19 @@ if __name__ == "__main__":
         expose_headers=["*"],
     )
 
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    print("=" * 80)
+    print("Session 8 MCP Server - HTTP Transport")
+    print("=" * 80)
+    print(f"Server URL: http://127.0.0.1:8008/mcp")
+    print("Transport: Streamable HTTP (SSE)")
+    print()
+    print("Available tools:")
+    print("  - web_search, fetch_url, get_time, currency_convert")
+    print("  - read_file, list_dir, create_file, update_file, edit_file")
+    print("  - index_document, search_knowledge")
+    print()
+    print("Press Ctrl+C to stop")
+    print("=" * 80)
+    print()
 
+    uvicorn.run(app, host="127.0.0.1", port=8008)
