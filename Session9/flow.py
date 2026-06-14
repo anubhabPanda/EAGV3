@@ -105,6 +105,16 @@ class Graph:
         pending: list[tuple[str, list[str]]] = []
         for spec in result.successors:
             label = (spec.metadata or {}).get("label")
+
+            # Validate browser nodes: URL must be a literal URL, not a node reference
+            if spec.skill == "browser":
+                url = (spec.metadata or {}).get("url", "")
+                if url.startswith("n:") or (url and not url.startswith("http")):
+                    # Planner hallucinated - skip this node to prevent cascade failures
+                    print(f"[flow] Skipping browser node {label or '(unlabeled)'}: "
+                          f"invalid URL '{url}' (must be https://..., not node reference)")
+                    continue
+
             new_id = self.add_node(spec.skill, inputs=[],
                                    metadata=spec.metadata)
             added.append(new_id)

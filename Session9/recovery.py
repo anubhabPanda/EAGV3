@@ -123,10 +123,21 @@ def handle_critic_verdict(nid: str, result, graph, recovered_branches: dict,
         recovered_branches[target_nid] = True
         rationale = (result.output or {}).get("rationale", "(no rationale)")
         fr = f"critic failed target={target_nid} child={child_nid} rationale={rationale}"
-        rec_nid = graph.add_node("planner", inputs=["USER_QUERY"],
+
+        # Pass prior successful nodes to recovery planner (same as regular recovery)
+        prior_complete = [
+            n for n, d in graph.g.nodes(data=True)
+            if d.get("status") == "complete"
+            and d["skill"] not in ("planner", "critic")
+            and d.get("result") is not None
+        ]
+        recovery_inputs = ["USER_QUERY"] + prior_complete
+
+        rec_nid = graph.add_node("planner", inputs=recovery_inputs,
                                  metadata={"failure_report": fr,
                                            "recovers": target_nid,
-                                           "recovery_reason": "critic_fail"})
+                                           "recovery_reason": "critic_fail",
+                                           "prior_complete": prior_complete})
         print(f"  ↪ critic-fail recovery: planner node {rec_nid} for {target_nid}")
     elif target_nid:
         cap_hit.append(target_nid)

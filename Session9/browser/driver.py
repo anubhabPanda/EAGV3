@@ -124,7 +124,7 @@ SYSTEM_PROMPT_A11Y = (
     "WHEN TO USE EACH ACTION:\n"
     "  - click: Navigate links, select dropdown options, toggle buttons, submit\n"
     "  - type: Fill search boxes (<input>Search</input>), forms, filters, text fields\n"
-    "    Example: <input>Filter by name</input> → type(mark, \"model-name\")\n"
+    "    Example: <input>Filter by name</input> -> type(mark, \"model-name\")\n"
     "  - key: Submit forms (Enter), navigate dropdowns (ArrowDown/ArrowUp), close (Escape)\n"
     "  - scroll: Access content below viewport (check if new elements appear next turn)\n"
     "  - wait: After dynamic content loads (AJAX, animations)\n"
@@ -260,7 +260,7 @@ class BaseDriver:
                 f"{a['type']}({a.get('mark') or a.get('value', '')})"
                 for a in s.actions[:3]
             )
-            lines.append(f"turn {s.turn}: {acts} → {s.outcome}")
+            lines.append(f"turn {s.turn}: {acts} -> {s.outcome}")
         return "\n".join(lines)
 
     async def _decide(self, snap: PageSnapshot, turn: int):
