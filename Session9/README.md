@@ -4,7 +4,7 @@ Production-grade agent system with **interactive browser automation** built on S
 
 ## DEMO
 
-**[Demo Video - Coming Soon]**
+[Agent in Action - Demo video](https://www.youtube.com/watch?v=3FWeejMfyWg)
 
 ---
 
