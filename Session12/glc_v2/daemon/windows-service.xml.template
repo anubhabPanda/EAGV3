@@ -1,0 +1,24 @@
+<!--
+  NSSM (the Non-Sucking Service Manager) service definition. Install with:
+    nssm install GLC "{{UV_BIN}}" "run glc serve"
+    nssm set GLC AppDirectory "{{GLC_HOME}}"
+    nssm set GLC AppStdout "{{APPDATA}}\glc\logs\glc.out.log"
+    nssm set GLC AppStderr "{{APPDATA}}\glc\logs\glc.err.log"
+    nssm set GLC AppEnvironmentExtra "GLC_PORT=8111"
+    nssm start GLC
+-->
+<service>
+  <id>GLC</id>
+  <name>GLC v1 — Gateway for LLMs and Channels</name>
+  <description>Personal-agent gateway: text, vision, embeddings, voice, channels.</description>
+  <executable>{{UV_BIN}}</executable>
+  <arguments>run glc serve</arguments>
+  <workingdirectory>{{GLC_HOME}}</workingdirectory>
+  <logpath>{{APPDATA}}\glc\logs</logpath>
+  <log mode="roll-by-size">
+    <sizeThreshold>10240</sizeThreshold>
+    <keepFiles>5</keepFiles>
+  </log>
+  <env name="GLC_PORT" value="8111" />
+  <onfailure action="restart" delay="5 sec" />
+</service>

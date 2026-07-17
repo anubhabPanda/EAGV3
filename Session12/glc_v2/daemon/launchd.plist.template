@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Template — substitute {{GLC_HOME}} (path to glc_v1 working dir) and
+  {{UV_BIN}} (absolute path to the `uv` binary) before installing.
+  daemon/install.sh handles substitution automatically.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.thinkers.glc</string>
+    <key>WorkingDirectory</key>
+    <string>{{GLC_HOME}}</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>{{UV_BIN}}</string>
+        <string>run</string>
+        <string>glc</string>
+        <string>serve</string>
+    </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>GLC_PORT</key>
+        <string>8111</string>
+    </dict>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>{{HOME}}/Library/Logs/glc/glc.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>{{HOME}}/Library/Logs/glc/glc.err.log</string>
+</dict>
+</plist>

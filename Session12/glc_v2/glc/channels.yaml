@@ -1,0 +1,27 @@
+# Default channels.yaml shipped with glc_v1. Per-channel defaults for
+# allowlists, rate limits, and adapter wiring. Override by dropping a
+# channels.yaml in ~/.glc/.
+
+defaults:
+  rate_limits:
+    messages_per_minute: 30
+    tool_calls_per_minute: 20
+  allowed_senders: []            # empty == owner-only by default
+  mention_only_in_public: true
+
+channels:
+  telegram:    {enabled: false}
+  discord:     {enabled: false}
+  slack:       {enabled: false}
+  whatsapp:    {enabled: true}
+  teams:       {enabled: false}
+  matrix:      {enabled: false}
+  line:        {enabled: false}
+  signal:      {enabled: false}
+  gmail:       {enabled: false}
+  imap:        {enabled: false}
+  twilio_sms:  {enabled: false}
+  twilio_voice: {enabled: false}
+  webui:       {enabled: true}
+  webhook:     {enabled: false}
+  local_mic:   {enabled: false}

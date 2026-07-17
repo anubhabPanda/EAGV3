@@ -1,0 +1,40 @@
+# Default policy.yaml shipped with glc_v1. These are the five example rules
+# documented in Session 11 §10. Override by dropping a policy.yaml in
+# ~/.glc/; the gateway hot-reloads on SIGHUP.
+#
+# Match semantics:
+#   - tool / channel / trust_level: "*" matches anything; otherwise literal
+#   - condition.path_glob:    fnmatch glob against the tool's `path` param
+#   - condition.command_matches: substring match against `command` param;
+#                                accepts a list of patterns (any-match)
+#   - condition.recipient_type:  literal match against the param
+#
+# Evaluation: first matching rule wins. Ties resolve to deny.
+
+rules:
+  - tool: email.send
+    condition:
+      recipient_type: external
+    action: require_approval
+    reason: "external email recipient requires owner approval"
+
+  - tool: file.delete
+    condition:
+      path_glob: "~/Documents/**"
+    action: deny
+    reason: "file deletes under ~/Documents are not permitted"
+
+  - tool: calendar.delete
+    action: require_approval
+    reason: "calendar deletions require owner approval"
+
+  - tool: shell.exec
+    condition:
+      command_matches: ["sudo", "rm -rf", "curl | sh"]
+    action: deny
+    reason: "command pattern is on the shell deny list"
+
+  - tool: "*"
+    trust_level: untrusted
+    action: deny
+    reason: "untrusted sender cannot dispatch any tool"

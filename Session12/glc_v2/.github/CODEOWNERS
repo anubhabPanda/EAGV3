@@ -1,0 +1,22 @@
+# Single reviewer for the course. All PRs route to @theschoolofai.
+# Student PRs touch their owned slot; @theschoolofai reviews + merges
+# once CI is green.
+
+*                                   @theschoolofai
+
+# Slot-owned paths (informational; the boundary check enforces them
+# per-PR via CLAIMS.md).
+/glc/channels/catalogue/**          @theschoolofai
+/glc/voice/stt/providers/**         @theschoolofai
+/glc/voice/tts/providers/**         @theschoolofai
+
+# Core gateway changes — same reviewer, but call out separately for
+# audit-log clarity in PR history.
+/glc/main.py                        @theschoolofai
+/glc/routes/                        @theschoolofai
+/glc/policy/                        @theschoolofai
+/glc/security/                      @theschoolofai
+/glc/audit/                         @theschoolofai
+
+# CLAIMS uniqueness is enforced by CI; reviewer verifies group name.
+/CLAIMS.md                          @theschoolofai

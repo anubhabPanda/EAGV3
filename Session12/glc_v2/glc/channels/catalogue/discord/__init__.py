@@ -1,0 +1,1 @@
+"""Discord Gateway adapter (stub)."""

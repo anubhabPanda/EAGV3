@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - run: uv sync
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+
+  type-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - run: uv sync
+      - run: uv run mypy glc tests || true # advisory until adapters land
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - run: uv sync
+      - run: |
+          # tests/channels and tests/voice/{stt,tts} are slot-specific stubs.
+          # adapter-pr.yml runs the matching slot test when its dir changes;
+          # here we cover the cross-cutting code (envelope, policy, audit,
+          # security, voice dispatchers, control plane, registry, V9 compat).
+          uv run pytest tests/ \
+            -m "not requires_live_api and not requires_models" \
+            --ignore=tests/channels \
+            --ignore=tests/voice/stt \
+            --ignore=tests/voice/tts \
+            --cov=glc --cov-report=term-missing --cov-fail-under=80
+
+  schema-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - run: uv sync
+      - run: uv run python scripts/validate_envelope.py
+      - run: uv run python scripts/validate_policy.py
