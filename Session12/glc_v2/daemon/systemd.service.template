@@ -1,0 +1,16 @@
+[Unit]
+Description=GLC v1 — Gateway for LLMs and Channels
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory={{GLC_HOME}}
+ExecStart={{UV_BIN}} run glc serve
+Restart=on-failure
+RestartSec=5
+Environment=GLC_PORT=8111
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target

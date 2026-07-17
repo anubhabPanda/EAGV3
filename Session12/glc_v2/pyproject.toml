@@ -1,0 +1,96 @@
+[project]
+name = "glc-v1"
+version = "0.1.0"
+description = "GLC v1 — Gateway for LLMs and Channels. Session 11 scaffold."
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+    "httpx>=0.27",
+    "python-dotenv>=1.0",
+    "pydantic>=2.6",
+    "jsonschema>=4.21",
+    "pyyaml>=6.0",
+    "websockets>=12.0",
+    "twilio>=9.0",
+    "modal>=1.5.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=4.1",
+    "ruff>=0.6",
+    "mypy>=1.10",
+]
+
+[project.scripts]
+glc = "glc.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["glc"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+testpaths = ["tests"]
+markers = [
+    "requires_live_api: tests that need real provider credentials (skipped in CI)",
+    "requires_models: tests that need local model downloads (Kokoro / whisper.cpp)",
+]
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP", "B"]
+ignore = ["E501", "B008"]
+
+[tool.ruff.lint.per-file-ignores]
+# V9-ported modules — kept verbatim from llm_gatewayV9. These have
+# pre-existing minor smells (unused intermediate variables, B904 raise-from
+# style, B023 loop-bound closures in retry logic) that we accept as-is so
+# the V9 fixes are not re-introduced during a touch-up.
+"glc/providers.py" = ["B023", "B904", "F841"]
+"glc/routes/chat.py" = ["B023", "B904", "F841"]
+"glc/embedders.py" = ["B023", "B904", "F841"]
+"glc/routing.py" = ["B023", "B904", "F841"]
+# Stub adapters intentionally redefine narrow abstract types — quiet B027.
+"glc/channels/base.py" = ["B027"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = false
+ignore_missing_imports = true
+warn_unused_ignores = false
+
+[tool.coverage.run]
+source = ["glc"]
+omit = [
+    # V9-ported provider/embedder/cache code — requires live API keys
+    # to exercise meaningfully. The V9 test suite covers these.
+    "glc/providers.py",
+    "glc/embedders.py",
+    "glc/cache.py",
+    "glc/llm_schemas.py",
+    "glc/pricing.py",
+    "glc/routing.py",
+    "glc/db.py",
+    "glc/routes/chat.py",
+    # Channel adapter stubs raise NotImplementedError — the green path
+    # is tested per-PR through adapter-pr.yml.
+    "glc/channels/catalogue/*",
+    # Voice provider stubs and helper wrappers — same exemption as
+    # channel adapter stubs. Real-call code paths need keys and model
+    # downloads; the catalogue test pattern uses mocks.
+    "glc/voice/stt/providers/*",
+    "glc/voice/tts/providers/*",
+    # CLI is a thin argparse shim around glc.main:app.
+    "glc/cli.py",
+]

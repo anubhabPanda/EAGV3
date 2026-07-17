@@ -1,0 +1,1 @@
+"""Local whisper.cpp (stub)."""

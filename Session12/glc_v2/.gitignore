@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.Python
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.cover
+
+# uv / venv
+.venv/
+.env
+.env.*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.idea/
+.vscode/
+*.swp
+
+# Runtime data — never commit installation state
+.glc/
+audit.sqlite
+pairings.sqlite
+gateway.sqlite
+install_token
+
+# Old generator artifacts
+/tmp/
+
+# Logs
+*.log
