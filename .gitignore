@@ -208,9 +208,12 @@ __marimo__/
 *.md
 !README.md
 !*/prompts/*.md
+!Session12/glc_v2/SECURITY_FIXES.md
 
 .vscode/
 
 resources
 
 */state
+
+# Session12/  # Un-ignored to track Session12 security fixes
