@@ -1,0 +1,22 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --locked --dev
+      - run: uv run ruff check .
+      - run: uv run pytest -q
+      # The proofs run offline, so CI exercises the same code path a reviewer
+      # runs against the live gateway. No collector, no provider key.
+      - run: uv run python proofs/p2_budget_holds.py --offline --task "summarise the attached notes" --budget 0.01
+      - run: uv run python proofs/p3_denial_of_wallet.py --offline --task "keep refining the draft" --budget 0.01
+      - run: uv run python proofs/p4_trace_export.py --offline --task "compare two options" --budget 0.01

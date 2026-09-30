@@ -1,0 +1,34 @@
+{
+  "run_id": "three_cities",
+  "finished": true,
+  "nodes": {
+    "research_london": {"id": "research_london", "skill": "researcher", "input": {"city": "London"}, "metadata": {"agent": "gemini_1"}, "state": "succeeded", "result": {"city": "London", "population_millions": 9.5, "range": "9.2-9.8", "provider": "gemini_1"}},
+    "research_berlin": {"id": "research_berlin", "skill": "researcher", "input": {"city": "Berlin"}, "metadata": {"agent": "gemini_2"}, "state": "succeeded", "result": {"city": "Berlin", "population_millions": 3.75, "range": "3.69-3.78", "provider": "gemini_2"}},
+    "research_paris": {"id": "research_paris", "skill": "researcher", "input": {"city": "Paris"}, "metadata": {"agent": "gemini_3"}, "state": "succeeded", "result": {"city": "Paris", "population_millions": 2.06, "range": "2.05-2.10", "provider": "gemini_3"}},
+    "distiller": {"id": "distiller", "skill": "distiller", "input": {}, "metadata": {"agent": "gemini_4"}, "state": "succeeded", "result": {"closest_pair": ["Berlin", "Paris"], "gap_millions": 1.64}},
+    "answer": {"id": "answer", "skill": "answer", "input": {}, "metadata": {"agent": "gemini_5"}, "state": "succeeded", "result": {"text": "London is the largest at about 9.5 million, Berlin about 3.75 million, and Paris about 2.06 million. The closest pair is Berlin and Paris, separated by roughly 1.64 million people."}}
+  },
+  "edges": [
+    ["research_london", "distiller"],
+    ["research_berlin", "distiller"],
+    ["research_paris", "distiller"],
+    ["distiller", "answer"]
+  ],
+  "events": [
+    {"sequence": 1, "kind": "run_started", "node_id": null, "payload": {}},
+    {"sequence": 2, "kind": "graph_patched", "node_id": null, "payload": {"trigger_event": 1, "reason": "goal names three independent cities", "add": ["research_london", "research_berlin", "research_paris"]}},
+    {"sequence": 3, "kind": "task_started", "node_id": "research_london", "payload": {"skill": "researcher", "agent": "gemini_1"}},
+    {"sequence": 4, "kind": "task_started", "node_id": "research_berlin", "payload": {"skill": "researcher", "agent": "gemini_2"}},
+    {"sequence": 5, "kind": "task_started", "node_id": "research_paris", "payload": {"skill": "researcher", "agent": "gemini_3"}},
+    {"sequence": 6, "kind": "task_succeeded", "node_id": "research_london", "payload": {"city": "London", "population_millions": 9.5, "range": "9.2-9.8", "provider": "gemini_1"}},
+    {"sequence": 7, "kind": "task_succeeded", "node_id": "research_paris", "payload": {"city": "Paris", "population_millions": 2.06, "range": "2.05-2.10", "provider": "gemini_3"}},
+    {"sequence": 8, "kind": "task_succeeded", "node_id": "research_berlin", "payload": {"city": "Berlin", "population_millions": 3.75, "range": "3.69-3.78", "provider": "gemini_2"}},
+    {"sequence": 9, "kind": "graph_patched", "node_id": null, "payload": {"trigger_event": 8, "reason": "three populations known; compare them", "add": ["distiller"], "connect": [["research_london", "distiller"], ["research_berlin", "distiller"], ["research_paris", "distiller"]]}},
+    {"sequence": 10, "kind": "task_started", "node_id": "distiller", "payload": {"skill": "distiller", "agent": "gemini_4"}},
+    {"sequence": 11, "kind": "task_succeeded", "node_id": "distiller", "payload": {"closest_pair": ["Berlin", "Paris"], "gap_millions": 1.64}},
+    {"sequence": 12, "kind": "graph_patched", "node_id": null, "payload": {"trigger_event": 11, "reason": "comparison ready; write the answer", "add": ["answer"], "connect": [["distiller", "answer"]]}},
+    {"sequence": 13, "kind": "task_started", "node_id": "answer", "payload": {"skill": "answer", "agent": "gemini_5"}},
+    {"sequence": 14, "kind": "task_succeeded", "node_id": "answer", "payload": {"text": "London is the largest at about 9.5 million, Berlin about 3.75 million, and Paris about 2.06 million. The closest pair is Berlin and Paris, separated by roughly 1.64 million people."}},
+    {"sequence": 15, "kind": "graph_patched", "node_id": null, "payload": {"trigger_event": 14, "reason": "completion contract satisfied", "finish": true}}
+  ]
+}

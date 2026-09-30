@@ -1,0 +1,1 @@
+{"service":"payments","retries":9,"timeout_seconds":0,"regions":["ap-south-1","ap-south-1"],"debug":true}

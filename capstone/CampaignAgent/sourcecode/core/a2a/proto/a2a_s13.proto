@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+// S15 core's local gRPC binding uses the official A2A v1 service and operation
+// names.  Struct keeps this educational harness dependency-light while the
+// JSON object remains structurally equivalent to the A2A request/task objects.
+package lf.a2a.v1;
+
+import "google/protobuf/struct.proto";
+
+service A2AService {
+  rpc SendMessage(google.protobuf.Struct) returns (google.protobuf.Struct);
+  rpc SendStreamingMessage(google.protobuf.Struct) returns (stream google.protobuf.Struct);
+  rpc GetTask(google.protobuf.Struct) returns (google.protobuf.Struct);
+  rpc CancelTask(google.protobuf.Struct) returns (google.protobuf.Struct);
+}

@@ -1,0 +1,5 @@
+sku,item,on_hand,reorder_point
+K-10,keyboard,18,20
+M-20,mouse,42,25
+D-30,dock,7,12
+H-40,headset,16,15

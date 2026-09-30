@@ -1,0 +1,7 @@
+id,service,severity,duration_minutes,customer_count,root_cause
+INC-101,checkout,SEV1,47,1200,database connection pool exhaustion
+INC-102,search,SEV2,31,420,stale cache deployment
+INC-103,checkout,SEV2,18,260,payment provider timeout
+INC-104,identity,SEV1,62,880,expired signing certificate
+INC-105,search,SEV3,12,75,index replication lag
+INC-106,checkout,SEV1,53,1600,database connection pool exhaustion

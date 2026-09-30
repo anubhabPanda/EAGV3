@@ -1,0 +1,27 @@
+{
+ "run_id": "run-9167dd41cbd6",
+ "prompt": "Make a set of 10 IIT JEE practice questions ... Show it to me as something I can actually work through.",
+ "prompt_mentions_a2ui_or_components": false,
+ "nodes": [
+  {
+   "id": "load_a2ui_skill",
+   "capability": "load_skill",
+   "skill": "a2ui"
+  },
+  {
+   "id": "generate_questions",
+   "capability": "content"
+  },
+  {
+   "id": "compose_quiz_ui",
+   "capability": "compose_surface"
+  }
+ ],
+ "components": 56,
+ "sections_in_data_model": 10,
+ "bindings_resolving": "52 of 62",
+ "validator": "ACCEPTED",
+ "used_tabs_for_concealment": true,
+ "used_modal": false,
+ "used_button": false
+}

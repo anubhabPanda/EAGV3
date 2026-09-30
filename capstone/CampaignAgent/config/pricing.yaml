@@ -1,0 +1,86 @@
+# Per-MODEL pricing. No price is ever hardcoded in Python.
+#
+# Prices are per `unit_tokens` tokens in `currency`. Published July 2026 list
+# prices; verify before teaching, the landscape churns monthly.
+#
+# The three rows marked LADDER are the rungs of config/tiers.yaml, and every one
+# of them was called against glc_v4 on 2026-07-30 before its rate was written
+# down here — same 3-sentence prompt, max_tokens 512, temperature 0, reasoning
+# off. `measured_*` keys are documentation: the loader reads `input` and `output`
+# and ignores the rest, so re-measuring is a config edit.
+
+currency: USD
+unit_tokens: 1000000
+
+# Used when a model has no row below, so an unknown model is never silently free.
+default:
+  input: 1.00
+  output: 5.00
+
+models:
+  # Google
+  # LADDER rung 2 (standard). MEASURED: 31 in / 89 out, $0.00014125, 1236 ms.
+  gemini-3.1-flash-lite:
+    input: 0.25
+    output: 1.50
+    measured_latency_ms: 1236
+    measured_reference_usd: 0.00014125
+    measured_non_empty: true
+  gemini-3.1-flash: {input: 0.50, output: 3.00}
+  gemini-3.1-pro: {input: 2.00, output: 12.00}
+  # Open weight / hosted (the other models this gateway serves today)
+  #
+  # NOT REACHABLE as of 2026-07-30: this is the model NVIDIA_MODEL selects, and
+  # it accepts the connection then never answers — 180 s, then an empty error,
+  # 3/3 attempts. glc_v4's routing.yaml benches the provider with that reason.
+  # meta/llama-3.1-8b-instruct on the same key answers in 1.37 s.
+  deepseek-ai/deepseek-v4-pro: {input: 0.14, output: 0.28}
+  meta/llama-3.1-8b-instruct: {input: 0.0, output: 0.0}
+  # LADDER rung 1 (economy). MEASURED: 101 in / 117 out, $0.0001029, 744 ms —
+  # and only with reasoning off. Left to itself it spends the whole output
+  # budget thinking and returns an empty string at full price.
+  openai/gpt-oss-120b:
+    input: 0.15
+    output: 0.75
+    measured_latency_ms: 744
+    measured_reference_usd: 0.0001029
+    measured_non_empty: true
+    measured_needs_reasoning_off: true
+  # MEASURED 35 in / 86 out, $0.0000605 at 1033 ms with reasoning off; with the
+  # dial alone it burned all 512 output tokens and returned "" for $0.0002735.
+  # Rate corrected from 0.20/0.80 to the 0.50/0.50 Cerebras actually bills,
+  # which is what glc_v4's own pricing table reports for it.
+  zai-glm-4.7: {input: 0.50, output: 0.50}
+  # Free tier. MEASURED 47 in / 108 out at 1849 ms with reasoning off.
+  nvidia/nemotron-3-super-120b-a12b:free: {input: 0.0, output: 0.0}
+  # LADDER rung 3 (frontier), and the most expensive model this gateway reaches.
+  # MEASURED: 37 in / 76 out, $0.000682, 2883 ms. Context caps at 8k here.
+  openai/gpt-4.1:
+    input: 2.00
+    output: 8.00
+    measured_latency_ms: 2883
+    measured_reference_usd: 0.000682
+    measured_non_empty: true
+  # Local weights: genuinely $0.00, and genuinely slow. MEASURED 46 in / 379 out
+  # at 39570 ms cold and 86430 ms under load.
+  gemma4:31b:
+    input: 0.0
+    output: 0.0
+    measured_latency_ms: 39570
+    measured_non_empty: true
+  # Anthropic
+  claude-haiku-4-5: {input: 1.00, output: 5.00}
+  claude-sonnet-5: {input: 3.00, output: 15.00}
+  claude-opus-5: {input: 5.00, output: 25.00}
+  # OpenAI
+  gpt-5.6-luna: {input: 1.00, output: 6.00}
+  gpt-5.6-terra: {input: 2.50, output: 15.00}
+  gpt-5.6-sol: {input: 5.00, output: 30.00}
+  # Local inference costs nothing per token.
+  ollama: {input: 0.0, output: 0.0}
+
+# Cache accounting, applied when the gateway reports cache token counts.
+# A cache read is billed at `cache_read_multiplier` x the input price; writing a
+# cache entry is billed at `cache_write_multiplier`.
+cache_read_multiplier: 0.1
+cache_write_multiplier: 1.25

@@ -1,0 +1,60 @@
+# Labelled prompt pairs for p6. THIS FILE IS DATA — replace it wholesale.
+#
+# One JSON object per line:
+#   {"id", "a", "b", "label", "family", "note"}
+#
+# `label` is the ground truth a human assigns BEFORE any embedding is computed,
+# and it is the only field the arithmetic uses:
+#
+#   same       a and b want the SAME answer. A cache that serves b from a's
+#              stored response is correct and has saved a whole provider call.
+#              These are the true positives.
+#   different  a and b want DIFFERENT answers. A cache that serves b from a's
+#              stored response has returned a confidently WRONG answer. These
+#              are the false positives, and they are the only thing that makes
+#              a similarity threshold a safety decision rather than a hit-rate
+#              decision.
+#
+# `family` groups the report and nothing else. Three are used here:
+#
+#   paraphrase  same-meaning rewrites, the case the cache exists to catch.
+#   near_miss   different-meaning pairs written to look alike on purpose. A
+#               false-positive rate measured on these is a WORST CASE over hard
+#               negatives, not a base rate over real traffic.
+#   unrelated   different-meaning pairs with nothing in common, included so the
+#               easy case and the hard case can be told apart in the report.
+#
+# `note` is free text, carried into the JSON, never parsed.
+#
+# Nothing in the proof knows any of these strings. Point --pairs at another file
+# and the whole measurement — cosines, TPR, FPR, the separation verdict — is
+# recomputed with no code change.
+
+{"id": "same01", "a": "Which planet in the solar system is the largest?", "b": "What is the biggest planet in our solar system?", "label": "same", "family": "paraphrase", "note": "word-swap paraphrase; the pair from the original ad-hoc curl measurement"}
+{"id": "same02", "a": "How do I reset my password?", "b": "What are the steps to reset my password?", "label": "same", "family": "paraphrase", "note": "support-desk paraphrase, the canonical semantic-cache use case"}
+{"id": "same03", "a": "What is the boiling point of water at sea level?", "b": "At sea level, at what temperature does water boil?", "label": "same", "family": "paraphrase", "note": "clause reordering, no shared verb form"}
+{"id": "same04", "a": "Summarise the main causes of the First World War.", "b": "Give me a summary of what caused World War I.", "label": "same", "family": "paraphrase", "note": "register change plus an abbreviation the embedder has to resolve"}
+{"id": "same05", "a": "Explain how a hash table works.", "b": "Can you explain the workings of a hash table?", "label": "same", "family": "paraphrase", "note": "politeness wrapper only; the least demanding paraphrase in the set"}
+{"id": "same06", "a": "Who wrote the novel Pride and Prejudice?", "b": "Which author is Pride and Prejudice by?", "label": "same", "family": "paraphrase", "note": "active/passive flip"}
+{"id": "same07", "a": "How long does light from the Sun take to reach Earth?", "b": "What is the travel time of sunlight from the Sun to the Earth?", "label": "same", "family": "paraphrase", "note": "verb phrase replaced by a nominalisation"}
+{"id": "same08", "a": "What does HTTP status code 404 mean?", "b": "What is the meaning of a 404 response in HTTP?", "label": "same", "family": "paraphrase", "note": "technical lookup, identical intent"}
+{"id": "same09", "a": "Give me a recipe for pancakes.", "b": "How do I make pancakes?", "label": "same", "family": "paraphrase", "note": "no content word in common except pancakes"}
+{"id": "same10", "a": "What is the difference between TCP and UDP?", "b": "How do TCP and UDP differ from each other?", "label": "same", "family": "paraphrase", "note": "noun/verb alternation on the same comparison"}
+
+{"id": "diff01", "a": "What is the largest planet in the solar system?", "b": "What is the smallest planet in the solar system?", "label": "different", "family": "near_miss", "note": "one antonym; every other token is shared"}
+{"id": "diff02", "a": "How do I enable two-factor authentication on my account?", "b": "How do I disable two-factor authentication on my account?", "label": "different", "family": "near_miss", "note": "enable/disable — opposite actions, one-syllable edit"}
+{"id": "diff03", "a": "Convert 100 US dollars to euros.", "b": "Convert 100 euros to US dollars.", "label": "different", "family": "near_miss", "note": "argument order carries the whole meaning; the bag of words is identical"}
+{"id": "diff04", "a": "What is the capital of Australia?", "b": "What is the capital of Austria?", "label": "different", "family": "near_miss", "note": "near-identical surface form, entirely different fact"}
+{"id": "diff05", "a": "List the common side effects of ibuprofen.", "b": "List the common side effects of paracetamol.", "label": "different", "family": "near_miss", "note": "same question, different drug — the failure mode that is not merely annoying"}
+{"id": "diff06", "a": "Show me flights from London to New York.", "b": "Show me flights from New York to London.", "label": "different", "family": "near_miss", "note": "direction reversal; a booking served from the wrong entry is a wrong booking"}
+{"id": "diff07", "a": "How do I restore the production database from a backup?", "b": "How do I delete the production database backup?", "label": "different", "family": "near_miss", "note": "restore vs delete on the same object; opposite consequences"}
+{"id": "diff08", "a": "What is the refund policy for annual subscriptions?", "b": "What is the refund policy for monthly subscriptions?", "label": "different", "family": "near_miss", "note": "one qualifier changes which policy applies"}
+{"id": "diff09", "a": "Is ibuprofen safe to take during pregnancy?", "b": "Is paracetamol safe to take during pregnancy?", "label": "different", "family": "near_miss", "note": "the answers genuinely differ; the wording barely does"}
+{"id": "diff10", "a": "What was the revenue in the third quarter of 2024?", "b": "What was the revenue in the third quarter of 2025?", "label": "different", "family": "near_miss", "note": "a single digit; the archetypal reporting-cache collision"}
+
+{"id": "far01", "a": "What is the boiling point of water at sea level?", "b": "Who wrote the novel Pride and Prejudice?", "label": "different", "family": "unrelated", "note": "two of this file's own prompts, drawn from different pairs"}
+{"id": "far02", "a": "How do I reset my password?", "b": "What is the difference between TCP and UDP?", "label": "different", "family": "unrelated", "note": "same domain, unrelated questions"}
+{"id": "far03", "a": "Give me a recipe for pancakes.", "b": "Summarise the main causes of the First World War.", "label": "different", "family": "unrelated", "note": "no shared vocabulary and no shared intent"}
+{"id": "far04", "a": "Explain how a hash table works.", "b": "Show me flights from London to New York.", "label": "different", "family": "unrelated", "note": "an explanation request against an action request"}
+{"id": "far05", "a": "What does HTTP status code 404 mean?", "b": "Is ibuprofen safe to take during pregnancy?", "label": "different", "family": "unrelated", "note": "different domains entirely"}
+{"id": "far06", "a": "Which planet in the solar system is the largest?", "b": "What is the refund policy for annual subscriptions?", "label": "different", "family": "unrelated", "note": "the easy case: nothing a threshold could confuse"}
