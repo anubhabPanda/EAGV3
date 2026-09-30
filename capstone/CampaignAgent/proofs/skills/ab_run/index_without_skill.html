@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arcturus - Developer Tool</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 2em;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .theme-toggle {
+            margin-bottom: 1em;
+        }
+        /* Light theme (default) */
+        body.light-theme {
+            background-color: #ffffff;
+            color: #333333;
+        }
+        /* Dark theme */
+        body.dark-theme {
+            background-color: #333333;
+            color: #ffffff;
+        }
+    </style>
+</head>
+<body>
+    <div class="theme-toggle">
+        <button id="themeToggle">Toggle Theme</button>
+    </div>
+    <h1>Welcome to Arcturus</h1>
+    <p>Arcturus is a powerful new developer tool designed to streamline your workflow and enhance productivity. With its intuitive interface and robust features, you can focus on what matters most: building amazing software.</p>
+    <p>Explore a suite of integrated functionalities, from advanced debugging to seamless code deployment. Arcturus empowers developers to achieve more with less effort, making complex tasks simple and efficient.</p>
+
+    <script>
+        const themeToggle = document.getElementById('themeToggle');
+        const body = document.body;
+
+        // Function to set the theme
+        function setTheme(theme) {
+            body.classList.remove('light-theme', 'dark-theme');
+            body.classList.add(theme);
+            localStorage.setItem('theme', theme);
+        }
+
+        // On page load, apply the saved theme or default to light
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedTheme = localStorage.getItem('theme') || 'light-theme';
+            setTheme(savedTheme);
+        });
+
+        // Toggle theme on button click
+        themeToggle.addEventListener('click', () => {
+            if (body.classList.contains('light-theme')) {
+                setTheme('dark-theme');
+            } else {
+                setTheme('light-theme');
+            }
+        });
+    </script>
+</body>
+</html>

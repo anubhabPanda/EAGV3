@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>S16 autonomy console</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap">
+<style>
+  :root {
+    --bg: #FFFFFF; --surface: #FFFFFF; --surface-alt: #FAFAFA;
+    --ink: #111111; --ink-body: #1A1A1A; --ink-muted: #555555;
+    --rule: #E8E8E8; --rule-strong: #D0D0D0;
+    --accent: #2563EB; --accent-soft: rgba(37,99,235,.08); --accent-ink: #1D4ED8;
+    --green: #16A34A; --green-soft: rgba(22,163,74,.12); --green-ink: #15803D;
+    --amber: #D97706; --amber-soft: rgba(217,119,6,.14); --amber-ink: #B45309;
+    --red: #DC2626; --red-soft: rgba(220,38,38,.10); --red-ink: #B91C1C;
+    --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    --font-serif: 'Palatino Linotype', Palatino, Georgia, serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--ink-body); font-family: var(--font-sans); font-size: 14px; line-height: 1.5; padding: 16px; }
+  .wrap { max-width: 1400px; margin: 0 auto; }
+
+  header { display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
+  .eyebrow { font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-muted); font-weight: 600; }
+  h1 { font-family: var(--font-serif); font-size: 24px; margin: 2px 0 0; color: var(--ink); font-weight: 700; }
+  .sub { font-family: var(--font-serif); font-style: italic; color: var(--ink-muted); margin: 3px 0 0; font-size: 14.5px; }
+  .spacer { flex: 1; }
+
+  /* the liveness badge is the point of the page: absence is the alarm */
+  .life { display: flex; align-items: center; gap: 11px; border: 1px solid; border-left-width: 5px; border-radius: 12px; padding: 11px 15px; min-width: 292px; }
+  .life.alive { background: var(--green-soft); border-color: var(--green); }
+  .life.dead { background: var(--red-soft); border-color: var(--red); }
+  .life.unknown { background: var(--surface-alt); border-color: var(--rule-strong); }
+  .pulse { width: 13px; height: 13px; border-radius: 50%; flex: none; }
+  .life.alive .pulse { background: var(--green); animation: beat 2s ease-in-out infinite; }
+  .life.dead .pulse { background: var(--red); }
+  .life.unknown .pulse { background: var(--rule-strong); }
+  @keyframes beat { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .45; transform: scale(.82); } }
+  @media (prefers-reduced-motion: reduce) { .life.alive .pulse { animation: none; } }
+  .life .lt { font-family: var(--font-mono); font-size: 12.5px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; }
+  .life.alive .lt { color: var(--green-ink); } .life.dead .lt { color: var(--red-ink); } .life.unknown .lt { color: var(--ink-muted); }
+  .life .lb { font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-muted); margin-top: 2px; }
+
+  .tiles { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 10px; margin-bottom: 14px; }
+  .tile { background: var(--surface); border: 1px solid var(--rule); border-radius: 11px; padding: 10px 12px; }
+  .tile .lab { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-muted); font-weight: 600; }
+  .tile .val { font-family: var(--font-mono); font-size: 22px; font-weight: 700; color: var(--ink); line-height: 1.2; margin-top: 2px; }
+  .tile.acted { border-top: 3px solid var(--accent); }
+  .tile.ignored { border-top: 3px solid var(--rule-strong); }
+  .tile.refused { border-top: 3px solid var(--amber); }
+  .tile.watch { border-top: 3px solid var(--amber); }
+  .tile.doing { border-top: 3px solid var(--green); }
+
+  .cols { display: grid; grid-template-columns: minmax(0,1.15fr) minmax(0,1fr); gap: 14px; align-items: start; }
+  .panel { background: var(--surface); border: 1px solid var(--rule); border-radius: 12px; overflow: hidden; }
+  .panel > h2 { font-family: var(--font-serif); font-size: 16.5px; margin: 0; padding: 11px 14px; border-bottom: 1px solid var(--rule); color: var(--ink); font-weight: 700; background: var(--surface-alt); display: flex; align-items: center; gap: 10px; }
+  .panel > h2 .tag { font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: var(--ink-muted); }
+
+  .tabs { display: flex; gap: 3px; padding: 8px 10px 0; border-bottom: 1px solid var(--rule); background: var(--surface-alt); flex-wrap: wrap; }
+  .tabs button { border: 1px solid transparent; border-bottom: none; background: transparent; font-family: var(--font-mono); font-size: 12px; font-weight: 700; padding: 7px 13px; cursor: pointer; color: var(--ink-muted); border-radius: 8px 8px 0 0; margin-bottom: -1px; }
+  .tabs button[aria-selected="true"] { background: var(--surface); color: var(--accent-ink); border-color: var(--rule); border-bottom-color: var(--surface); }
+  .tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  [hidden] { display: none !important; }
+
+  .tape { font-family: var(--font-mono); font-size: 12px; max-height: 560px; overflow: auto; padding: 6px 0; }
+  .row { display: grid; grid-template-columns: 52px 1fr; gap: 10px; padding: 7px 14px; border-bottom: 1px solid var(--rule); }
+  .row:last-child { border-bottom: none; }
+  .row .seq { color: var(--ink-muted); }
+  .row .body b { display: block; color: var(--ink); font-weight: 600; }
+  .row .body span { color: var(--ink-muted); display: block; margin-top: 2px; overflow-wrap: anywhere; }
+  .row .decisions { margin-top: 5px; display: flex; flex-direction: column; gap: 3px; }
+  .chip { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 10.5px; font-weight: 700; }
+  .chip.acted { background: var(--accent-soft); color: var(--accent-ink); }
+  .chip.ignored { background: var(--surface-alt); color: var(--ink-muted); border: 1px solid var(--rule); }
+  .chip.refused { background: var(--amber-soft); color: var(--amber-ink); }
+  .chip.failed { background: var(--red-soft); color: var(--red-ink); }
+  .empty { color: var(--ink-muted); font-style: italic; padding: 22px 14px; font-family: var(--font-serif); font-size: 14.5px; }
+
+  pre.report { font-family: var(--font-mono); font-size: 11.5px; white-space: pre-wrap; word-break: break-word; margin: 0; padding: 12px 14px; max-height: 560px; overflow: auto; color: var(--ink-body); }
+  .controls { display: flex; gap: 8px; align-items: center; padding: 9px 14px; border-bottom: 1px solid var(--rule); flex-wrap: wrap; background: var(--surface-alt); }
+  .btn { appearance: none; border: 1px solid var(--rule-strong); background: var(--surface); color: var(--ink-body); border-radius: 999px; padding: 5px 12px; font-family: var(--font-mono); font-size: 11.5px; font-weight: 700; cursor: pointer; }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .hint { font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted); }
+  footer { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--rule); font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-muted); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  code { font-family: var(--font-mono); }
+
+  @media (max-width: 1000px) {
+    .cols { grid-template-columns: 1fr; }
+    .tiles { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d0f14; --surface: #161922; --surface-alt: #11131a;
+      --ink: #f3f5f9; --ink-body: #e4e8f0; --ink-muted: #9aa4b8;
+      --rule: #252a36; --rule-strong: #333a49;
+      --accent: #60a5fa; --accent-soft: rgba(96,165,250,.12); --accent-ink: #93c5fd;
+      --green: #22c55e; --green-soft: rgba(22,163,74,.20); --green-ink: #4ade80;
+      --amber: #f59e0b; --amber-soft: rgba(217,119,6,.22); --amber-ink: #fbbf24;
+      --red: #ef4444; --red-soft: rgba(220,38,38,.20); --red-ink: #fca5a5;
+    }
+    body { background: var(--bg); }
+    .btn { background: var(--surface); }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="eyebrow">S16 · autonomy console</div>
+      <h1>What the agent did while nobody was watching</h1>
+      <p class="sub">A projection of the event history. This page holds no state the runtime does not already own.</p>
+    </div>
+    <div class="spacer"></div>
+    <div class="life unknown" id="life" role="status" aria-live="polite">
+      <div class="pulse" id="pulse"></div>
+      <div>
+        <div class="lt" id="lifeTitle">checking…</div>
+        <div class="lb" id="lifeBody">GET /v1/agent/liveness</div>
+      </div>
+    </div>
+  </header>
+
+  <div class="tiles">
+    <div class="tile acted"><div class="lab">acted</div><div class="val" id="tActed">—</div></div>
+    <div class="tile ignored"><div class="lab">ignored</div><div class="val" id="tIgnored">—</div></div>
+    <div class="tile refused"><div class="lab">refused by a control</div><div class="val" id="tRefused">—</div></div>
+    <div class="tile watch"><div class="lab">cost of watching</div><div class="val" id="tWatch">—</div></div>
+    <div class="tile doing"><div class="lab">cost of doing</div><div class="val" id="tDoing">—</div></div>
+  </div>
+
+  <div class="cols">
+    <section class="panel">
+      <h2>Live event tape <span class="tag" id="cursorTag">cursor 0</span> <span class="tag" id="streamTag">connecting…</span></h2>
+      <div class="tape" id="tape"><div class="empty">Waiting for the first event. Deliver one to <code>POST /v1/agent/events</code>.</div></div>
+    </section>
+
+    <section class="panel">
+      <div class="tabs" role="tablist" aria-label="operator views">
+        <button type="button" role="tab" id="tab-ref" aria-controls="p-ref" aria-selected="true">Refusals</button>
+        <button type="button" role="tab" id="tab-sub" aria-controls="p-sub" aria-selected="false" tabindex="-1">Subscriptions</button>
+        <button type="button" role="tab" id="tab-rep" aria-controls="p-rep" aria-selected="false" tabindex="-1">Report</button>
+      </div>
+
+      <div class="controls">
+        <button class="btn" id="refresh">↻ Refresh</button>
+        <label class="hint">window
+          <select id="hours" style="font-family:var(--font-mono);font-size:11px;margin-left:5px">
+            <option value="1">1h</option><option value="12" selected>12h</option>
+            <option value="24">24h</option><option value="168">7d</option>
+          </select>
+        </label>
+        <span class="hint" id="refreshedAt"></span>
+      </div>
+
+      <div id="p-ref" role="tabpanel" aria-labelledby="tab-ref" tabindex="0">
+        <div class="tape" id="refusals"><div class="empty">Nothing refused in this window.</div></div>
+      </div>
+      <div id="p-sub" role="tabpanel" aria-labelledby="tab-sub" tabindex="0" hidden>
+        <div class="tape" id="subs"><div class="empty">No subscriptions configured.</div></div>
+      </div>
+      <div id="p-rep" role="tabpanel" aria-labelledby="tab-rep" tabindex="0" hidden>
+        <pre class="report" id="report">loading…</pre>
+      </div>
+    </section>
+  </div>
+
+  <footer>
+    <span>Read-only. Every number here comes from the durable event history, so a reload cannot invent or lose one.</span>
+    <span id="origin"></span>
+  </footer>
+</div>
+
+<script>
+// ---------------------------------------------------------------------------
+// A projection of the event history, nothing more. The console keeps no state
+// the runtime does not already own: on reconnect it resumes from the SSE cursor
+// and the runtime replays what was missed, exactly as S14's event tape did for
+// one run. Read endpoints only; every write path requires the control token and
+// deliberately has no button here.
+// ---------------------------------------------------------------------------
+const $ = id => document.getElementById(id);
+const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; };
+const usd = v => "$" + Number(v || 0).toFixed(8);
+
+let cursor = 0, source = null, seen = 0;
+
+// ---- liveness: absence of a beat is the alarm ----------------------------
+async function liveness() {
+  const box = $("life");
+  try {
+    const res = await fetch("/v1/agent/liveness", { cache: "no-store" });
+    const body = await res.json();
+    const alive = res.status === 200 && body.alive;
+    box.className = "life " + (alive ? "alive" : "dead");
+    $("lifeTitle").textContent = alive ? "watcher alive" : "watcher not alive";
+    const silent = body.silent_for_seconds;
+    $("lifeBody").textContent = body.reason
+      + (silent != null ? ` · silent ${Math.round(silent)}s` : "");
+  } catch (error) {
+    // The console failing to reach the runtime is itself a liveness fact.
+    box.className = "life dead";
+    $("lifeTitle").textContent = "runtime unreachable";
+    $("lifeBody").textContent = String(error).slice(0, 90);
+  }
+}
+
+// ---- the tape ------------------------------------------------------------
+function decisionChips(record) {
+  const wrap = el("div", "decisions");
+  (record.decisions || []).forEach(d => {
+    let cls = "ignored", label;
+    if (d.failed) { cls = "failed"; label = "gate failed"; }
+    else if (d.refused_by) { cls = "refused"; label = "refused · " + d.refused_by; }
+    else if (d.relevant) { cls = "acted"; label = "acted · " + (d.run_status || "run"); }
+    else { label = "ignored"; }
+    const line = el("div");
+    line.append(el("span", "chip " + cls, label));
+    const why = d.reason ? " " + d.reason : "";
+    if (why) line.append(document.createTextNode(why.slice(0, 180)));
+    wrap.append(line);
+  });
+  return wrap;
+}
+
+function addEvent(record) {
+  const tape = $("tape");
+  if (seen === 0) tape.textContent = "";
+  seen += 1;
+  const row = el("div", "row");
+  row.append(el("div", "seq", "#" + record.sequence));
+  const body = el("div", "body");
+  const ev = record.event || {};
+  body.append(el("b", null, `${ev.source || "?"} / ${ev.type || "?"}`));
+  const meta = [ev.id, ev.subject, ev.actor ? "actor " + ev.actor : null]
+    .filter(Boolean).join("  ·  ");
+  body.append(el("span", null, meta));
+  body.append(decisionChips(record));
+  row.append(body);
+  tape.prepend(row);           // newest first: an operator reads the top
+  cursor = Math.max(cursor, record.sequence || 0);
+  $("cursorTag").textContent = "cursor " + cursor;
+}
+
+function connect() {
+  if (source) source.close();
+  $("streamTag").textContent = "connecting…";
+  source = new EventSource("/v1/agent/events/stream?after=" + cursor);
+  source.addEventListener("open", () => { $("streamTag").textContent = "streaming"; });
+  source.addEventListener("autonomous_event", e => {
+    try { addEvent(JSON.parse(e.data)); } catch (_) { /* keepalive or partial */ }
+  });
+  source.addEventListener("error", () => {
+    // Resume from the cursor rather than from zero: the history is the
+    // source of truth, so a dropped connection loses nothing.
+    $("streamTag").textContent = "reconnecting from " + cursor;
+    source.close();
+    setTimeout(connect, 2000);
+  });
+}
+
+// ---- operator views ------------------------------------------------------
+async function refreshPanels() {
+  const hours = $("hours").value;
+  try {
+    const [refRes, subRes, repRes, repMd] = await Promise.all([
+      fetch(`/v1/agent/refusals?hours=${hours}`, { cache: "no-store" }),
+      fetch("/v1/agent/subscriptions", { cache: "no-store" }),
+      fetch(`/v1/agent/report?hours=${hours}`, { cache: "no-store" }),
+      fetch(`/v1/agent/report?hours=${hours}&fmt=markdown`, { cache: "no-store" }),
+    ]);
+
+    const refusals = (await refRes.json()).refusals || [];
+    const box = $("refusals"); box.textContent = "";
+    if (!refusals.length) {
+      box.append(el("div", "empty", "Nothing refused in this window. That is either a calm window or an unbounded one — the tiles above say which."));
+    } else {
+      refusals.slice().reverse().forEach(r => {
+        const row = el("div", "row");
+        row.append(el("div", "seq", (r.at || "").slice(11, 19)));
+        const body = el("div", "body");
+        body.append(el("b", null, r.control || "refused"));
+        body.append(el("span", null, r.reason || ""));
+        if (r.event) body.append(el("span", null, `${r.event.source || "?"} / ${r.event.id || "?"}`));
+        row.append(body); box.append(row);
+      });
+    }
+
+    const subs = (await subRes.json()).subscriptions || [];
+    const sbox = $("subs"); sbox.textContent = "";
+    if (!subs.length) {
+      sbox.append(el("div", "empty", "No subscriptions configured. Nothing can be relevant until a human writes one."));
+    } else {
+      subs.forEach(s => {
+        const row = el("div", "row");
+        row.append(el("div", "seq", s.enabled ? "on" : "off"));
+        const body = el("div", "body");
+        body.append(el("b", null, s.id));
+        body.append(el("span", null, s.instruction || ""));
+        const ceilings = [
+          s.budget != null ? `run ${usd(s.budget)}` : null,
+          s.daily_budget != null ? `day ${usd(s.daily_budget)}` : null,
+          s.max_runs_per_day != null ? `${s.max_runs_per_day} runs/day` : null,
+          s.daily_triage_budget != null ? `triage ${usd(s.daily_triage_budget)}` : null,
+        ].filter(Boolean).join("  ·  ");
+        body.append(el("span", null, (ceilings || "NO WINDOW CEILING") +
+          "   side effects: " + ((s.allowed_side_effects || []).join(", ") || "none")));
+        row.append(body); sbox.append(row);
+      });
+    }
+
+    const report = await repRes.json();
+    const totals = report.totals || {};
+    $("tActed").textContent = totals.acted ?? "—";
+    $("tIgnored").textContent = totals.ignored ?? "—";
+    $("tRefused").textContent = totals.blocked_by_a_control ?? "—";
+    $("tWatch").textContent = usd(totals.cost_of_watching_usd);
+    $("tDoing").textContent = usd(totals.cost_of_doing_usd);
+    $("report").textContent = await repMd.text();
+    $("refreshedAt").textContent = "refreshed " + new Date().toTimeString().slice(0, 8);
+  } catch (error) {
+    $("report").textContent = "Could not reach the runtime: " + error;
+  }
+}
+
+// ---- tabs ----------------------------------------------------------------
+(function () {
+  const tabs = Array.from(document.querySelectorAll('[role="tab"]'));
+  function select(i) {
+    tabs.forEach((t, j) => {
+      const on = i === j;
+      t.setAttribute("aria-selected", on ? "true" : "false");
+      t.tabIndex = on ? 0 : -1;
+      document.getElementById(t.getAttribute("aria-controls")).hidden = !on;
+    });
+  }
+  tabs.forEach((t, i) => {
+    t.addEventListener("click", () => select(i));
+    t.addEventListener("keydown", e => {
+      let n = null;
+      if (e.key === "ArrowRight") n = (i + 1) % tabs.length;
+      else if (e.key === "ArrowLeft") n = (i - 1 + tabs.length) % tabs.length;
+      if (n !== null) { e.preventDefault(); select(n); tabs[n].focus(); }
+    });
+  });
+  select(0);
+})();
+
+$("refresh").addEventListener("click", refreshPanels);
+$("hours").addEventListener("change", refreshPanels);
+$("origin").textContent = location.origin;
+
+liveness();
+refreshPanels();
+// The tape is the nice-to-have; the liveness beat and the ledgers are not. If
+// SSE is unavailable or blocked, polling must still run, so a missing stream
+// degrades the page rather than silencing it.
+try { connect(); } catch (error) { $("streamTag").textContent = "stream unavailable · polling"; }
+setInterval(liveness, 5000);
+setInterval(refreshPanels, 20000);
+</script>
+</body>
+</html>

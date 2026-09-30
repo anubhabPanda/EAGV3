@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>S14 render client</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --bg:#FFFFFF;--surface:#FFFFFF;--surface-alt:#FAFAFA;--ink:#111;--ink-body:#1A1A1A;--ink-muted:#555;
+    --rule:#E8E8E8;--rule-strong:#D0D0D0;--accent:#2563EB;--accent-soft:rgba(37,99,235,.08);
+    --green:#16A34A;--green-soft:rgba(22,163,74,.12);--green-ink:#15803D;
+    --amber:#D97706;--amber-soft:rgba(217,119,6,.14);--amber-ink:#B45309;
+    --red:#DC2626;--red-soft:rgba(220,38,38,.10);--red-ink:#B91C1C;
+    --font-sans:'Inter',system-ui,sans-serif;--font-serif:'Palatino Linotype',Palatino,Georgia,serif;--font-mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+  }
+  *{box-sizing:border-box}body{margin:0;background:var(--surface-alt);color:var(--ink-body);font-family:var(--font-sans);font-size:14px;padding:18px}
+  .wrap{max-width:1000px;margin:0 auto}
+  .bar{display:flex;align-items:center;gap:10px;margin-bottom:14px;font-family:var(--font-mono);font-size:12px;color:var(--ink-muted)}
+  .pill{padding:3px 10px;border-radius:999px;background:var(--green-soft);color:var(--green-ink);font-weight:600}
+  .Text{color:var(--ink-body);line-height:1.55}
+  .Text.heading{font-family:var(--font-serif);font-size:22px;font-weight:700;color:var(--ink);margin:2px 0 12px}
+  .Text.subtitle{font-style:italic;color:var(--ink-muted);font-size:15px}
+  .Text.caption{font-size:12px;color:var(--ink-muted);font-family:var(--font-mono)}
+  .Column{display:flex;flex-direction:column;gap:14px}
+  .List{display:flex;flex-direction:column;gap:8px}
+  .Row{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--surface);border:1px solid var(--rule);border-radius:9px}
+  .Card{background:var(--surface);border:1px solid var(--rule);border-radius:12px;padding:14px 16px}
+  .Divider{height:1px;background:var(--rule);margin:2px 0}
+  .field{display:flex;flex-direction:column;gap:4px;font-size:13px}
+  .field .lb{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-muted);font-weight:600;font-family:var(--font-mono)}
+  .field input[type=text],.field input[type=datetime-local],.field select{padding:6px 10px;border:1px solid var(--rule-strong);border-radius:8px;font-size:13px;font-family:var(--font-sans);background:var(--surface);color:var(--ink-body)}
+  .field.check{flex-direction:row;align-items:center;gap:8px}
+  .Modal{background:var(--surface);border:1px solid var(--rule-strong);border-radius:12px;padding:16px;box-shadow:0 8px 30px rgba(0,0,0,.12)}
+  .Modal .mt{font-weight:700;color:var(--ink);margin-bottom:10px}
+  .Modal .mtag{font-family:var(--font-mono);font-size:10px;color:var(--ink-muted);text-transform:uppercase;letter-spacing:.06em}
+  .StatTile{background:var(--surface);border:1px solid var(--rule);border-radius:12px;padding:14px}
+  .StatTile .lab{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-muted);font-weight:600;font-family:var(--font-mono)}
+  .StatTile .val{font-size:30px;font-weight:700;color:var(--ink);line-height:1.1;margin-top:6px}
+  .StatTile .dl{font-size:11px;color:var(--ink-muted);margin-top:4px}
+  .StatTile.good{border-top:3px solid var(--green)}.StatTile.warn{border-top:3px solid var(--amber)}.StatTile.neutral{border-top:3px solid var(--accent)}
+  .chart{background:var(--surface);border:1px solid var(--rule);border-radius:12px;padding:14px}
+  .chart .ct{font-size:12px;font-weight:600;color:var(--ink-muted);margin-bottom:8px;font-family:var(--font-mono)}
+  table{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--rule);border-radius:12px;overflow:hidden}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--rule);font-size:13px}
+  th{font-family:var(--font-mono);font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-muted);cursor:pointer;user-select:none;background:var(--surface-alt)}
+  tr:last-child td{border-bottom:none}
+  .filter{margin-bottom:8px;padding:6px 10px;border:1px solid var(--rule-strong);border-radius:8px;font-size:13px;width:100%;max-width:240px;font-family:var(--font-mono)}
+  .tabs{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+  .tabs button{border:1px solid var(--rule-strong);background:var(--surface);border-radius:999px;padding:5px 13px;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font-mono);color:var(--ink-muted)}
+  .tabs button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .tl{background:#0f1117;border-radius:12px;padding:12px 14px;font-family:var(--font-mono);font-size:12px;color:#c8d0e0;max-height:220px;overflow:auto}
+  .tl .r{display:flex;gap:10px;padding:2px 0}.tl .s{color:#6b7594}.tl .k{color:#4ade80}.tl .n{color:#c8d0e0}
+  .Approval{background:var(--surface);border:1px solid var(--amber);border-radius:12px;padding:16px;border-left:4px solid var(--amber)}
+  .Approval .sm{font-weight:600;margin-bottom:6px}.Approval pre{background:var(--surface-alt);padding:8px;border-radius:8px;font-size:12px;overflow:auto;font-family:var(--font-mono)}
+  .Approval .btns{display:flex;gap:8px;margin-top:10px}
+  .Approval button{border-radius:8px;padding:7px 16px;font-weight:600;font-size:13px;cursor:pointer;border:1px solid var(--rule-strong);background:#fff}
+  .Approval button.ok{background:var(--green);color:#fff;border-color:var(--green)}
+  .prog{height:12px;border-radius:999px;background:var(--surface-alt);border:1px solid var(--rule);overflow:hidden}
+  .prog>i{display:block;height:100%;background:var(--green)}
+  @media (prefers-color-scheme:dark){:root{--bg:#0d0f14;--surface:#161922;--surface-alt:#11131a;--ink:#f3f5f9;--ink-body:#e4e8f0;--ink-muted:#9aa4b8;--rule:#252a36;--rule-strong:#333a49}body{background:var(--surface-alt)}}
+
+  .Text .md-h{font-weight:700;color:var(--ink);margin:12px 0 4px}.Text .md-p{margin:6px 0;line-height:1.6}.Text .md-ul{margin:6px 0 6px 4px;padding-left:18px}.Text .md-ul li{margin:3px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="bar">
+    <span class="pill" id="badge">rendering…</span>
+    <span id="meta"></span>
+    <span id="live" style="margin-left:auto"></span>
+    <span id="run">run __RUN_ID__</span>
+  </div>
+  <div id="mount"></div>
+</div>
+<script>
+// The render client. It maps trusted catalog types to DOM. It NEVER sets
+// innerHTML from a bound value and NEVER evaluates any string. A component is
+// data; a widget draws it. Unknown types are skipped, not executed.
+const RUN = "__RUN_ID__";
+const $ = (t, cls) => { const e = document.createElement(t); if (cls) e.className = cls; return e; };
+const text = (t) => document.createTextNode(t == null ? "" : String(t));
+
+function resolve(v, dm){ return (v && typeof v === "object" && "$bind" in v) ? pointer(dm, v["$bind"]) : v; }
+// safe markdown -> DOM (createElement + text nodes only; never raw HTML)
+function mdInline(line,parent){const re=/(\*\*([^*]+)\*\*|\*([^*]+)\*|_([^_]+)_)/g;let last=0,m;while((m=re.exec(line))){if(m.index>last)parent.append(text(line.slice(last,m.index)));if(m[2]!=null){const s=document.createElement("strong");s.textContent=m[2];parent.append(s);}else{const e=document.createElement("em");e.textContent=(m[3]!=null?m[3]:m[4]);parent.append(e);}last=re.lastIndex;}if(last<line.length)parent.append(text(line.slice(last)));}
+function md(t){const f=document.createDocumentFragment();let ul=null;for(const raw of String(t==null?"":t).split(/\r?\n/)){const line=raw.trim();if(!line){ul=null;continue;}const h=line.match(/^(#{1,4})\s+(.*)/),b=line.match(/^[*\-]\s+(.*)/);if(h){ul=null;const d=$("div","md-h");mdInline(h[2],d);f.append(d);}else if(b){if(!ul){ul=document.createElement("ul");ul.className="md-ul";f.append(ul);}const li=document.createElement("li");mdInline(b[1],li);ul.append(li);}else{ul=null;const p=$("div","md-p");mdInline(line,p);f.append(p);}}return f;}
+function pointer(dm, ptr){ let cur = dm; for(const seg of ptr.split("/").slice(1)){ if(cur==null) return null; cur = cur[seg]; } return cur; }
+// Two-way inputs write ONLY into the local data model — never back to the agent.
+function setPointer(dm, ptr, val){ const segs=ptr.split("/").slice(1); let cur=dm; for(let i=0;i<segs.length-1;i++){ if(cur[segs[i]]==null) cur[segs[i]]={}; cur=cur[segs[i]]; } if(segs.length) cur[segs[segs.length-1]]=val; }
+// Same scheme block the validator enforces: an Image src is used ONLY if it is
+// not a javascript:/data:/vbscript: URL. An unvetted scheme yields no src.
+function isSafeUrl(u){ return typeof u==="string" && !/^\s*(javascript|data|vbscript):/i.test(u); }
+
+const JUSTIFY={start:"flex-start",center:"center",end:"flex-end",spaceBetween:"space-between",spaceAround:"space-around"};
+const ALIGN={start:"flex-start",center:"center",end:"flex-end",stretch:"stretch",baseline:"baseline"};
+
+const RENDERERS = {
+  // --- A2UI Basic ------------------------------------------------------------
+  Column:(c,ctx)=>{const e=$("div","Column");kids(c,ctx,e);return e;},
+  List:(c,ctx)=>{const e=$("div","List");kids(c,ctx,e);return e;},
+  Row:(c,ctx)=>{const e=$("div","Row");if(c.align)e.style.alignItems=ALIGN[c.align]||"center";if(c.justify)e.style.justifyContent=JUSTIFY[c.justify]||"space-between";kids(c,ctx,e);return e;},
+  Card:(c,ctx)=>{const e=$("div","Card");if(c.title){const h=$("div");h.style.cssText="font-weight:600;margin-bottom:8px";h.append(text(resolve(c.title,ctx.dm)));e.append(h);}kids(c,ctx,e);return e;},
+  Divider:()=>$("div","Divider"),
+  Text:(c,ctx)=>{const e=$("div","Text "+(c.variant||"body"));const v=resolve(c.text,ctx.dm);(c.variant||"body")==="heading"?e.append(text(v)):e.append(md(v));return e;}, // heading = literal; body = safe markdown DOM
+  Image:(c)=>{const e=$("img");const src=c.src;if(isSafeUrl(src))e.setAttribute("src",src);e.setAttribute("alt",c.alt==null?"":String(c.alt));e.style.cssText="max-width:100%;border-radius:8px";return e;},
+  TextField:(c,ctx)=>field(c,()=>{const i=$("input");i.type="text";i.value=resolve(c.value,ctx.dm)??"";if(c.placeholder)i.placeholder=c.placeholder;
+    i.oninput=()=>{if(c.value&&c.value.$bind)setPointer(ctx.dm,c.value.$bind,i.value);};return i;}),
+  CheckBox:(c,ctx)=>{const wrap=$("label","field check");const i=$("input");i.type="checkbox";i.checked=!!resolve(c.checked,ctx.dm);
+    i.onchange=()=>{if(c.checked&&c.checked.$bind)setPointer(ctx.dm,c.checked.$bind,i.checked);};const s=$("span");s.append(text(c.label||""));wrap.append(i,s);return wrap;},
+  Slider:(c,ctx)=>field(c,()=>{const i=$("input");i.type="range";i.min=c.min??0;i.max=c.max??100;i.value=+resolve(c.value,ctx.dm)||0;
+    i.oninput=()=>{if(c.value&&c.value.$bind)setPointer(ctx.dm,c.value.$bind,+i.value);};return i;}),
+  InputChoice:(c,ctx)=>field(c,()=>{const s=$("select");const opts=resolve(c.options,ctx.dm)||[];const cur=resolve(c.value,ctx.dm);
+    opts.forEach(o=>{const op=$("option");op.value=String(o);op.append(text(o));if(String(o)===String(cur))op.selected=true;s.append(op);});
+    s.onchange=()=>{if(c.value&&c.value.$bind)setPointer(ctx.dm,c.value.$bind,s.value);};return s;}),
+  DateTime:(c,ctx)=>field(c,()=>{const i=$("input");i.type="datetime-local";i.value=resolve(c.value,ctx.dm)??"";
+    i.oninput=()=>{if(c.value&&c.value.$bind)setPointer(ctx.dm,c.value.$bind,i.value);};return i;}),
+  Button:(c,ctx)=>{const b=$("button","");b.className="";b.style.cssText="border:1px solid var(--rule-strong);background:var(--surface);border-radius:8px;padding:6px 14px;font-weight:600;cursor:pointer";
+    b.append(text(c.label));b.onclick=()=>emitAction(c.onPress&&c.onPress.action,{});return b;},
+  Tabs:(c,ctx)=>renderTabs(c,ctx),
+  Modal:(c,ctx)=>{const e=$("div","Modal");const tag=$("div","mtag");tag.append(text((resolve(c.open,ctx.dm)?"modal · open":"modal · preview")));
+    const h=$("div","mt");h.append(text(c.title||""));e.append(tag,h);kids(c,ctx,e);return e;},
+  // --- Custom extensions -----------------------------------------------------
+  Notice:(c,ctx)=>{const e=$("div","Card");e.style.borderLeft="4px solid var(--"+({good:"green",warn:"amber",bad:"red"}[c.tone]||"accent")+")";e.append(text(resolve(c.text,ctx.dm)));return e;},
+  StatTile:(c,ctx)=>{const e=$("div","StatTile "+(c.tone||"neutral"));
+    const l=$("div","lab");l.append(text(c.label));const v=$("div","val");v.append(text(resolve(c.value,ctx.dm)+(c.unit||"")));
+    const d=$("div","dl");d.append(text(resolve(c.delta,ctx.dm)||""));e.append(l,v,d);return e;},
+  ProgressBar:(c,ctx)=>{const e=$("div","chart");const t=$("div","ct");t.append(text("progress"));
+    const p=$("div","prog");const i=$("i");const val=+resolve(c.value,ctx.dm)||0;i.style.width=Math.min(100,val/(c.max||100)*100)+"%";
+    p.append(i);e.append(t,p);const cap=$("div");cap.style.cssText="font-size:11px;color:var(--ink-muted);margin-top:6px;font-family:var(--font-mono)";cap.append(text(val+" / "+(c.max||100)));e.append(cap);return e;},
+  Sparkline:(c,ctx)=>{const e=$("div","chart");const t=$("div","ct");t.append(text("trend"));e.append(t);
+    const d=resolve(c.data,ctx.dm)||[];e.append(sparkSvg(d,c.tone));return e;},
+  BarChart:(c,ctx)=>{const e=$("div","chart");const t=$("div","ct");t.append(text(c.title||"bar chart"));e.append(t);
+    e.append(barSvg(resolve(c.data,ctx.dm)||[],c.xKey,c.yKey));return e;},
+  DataTable:(c,ctx)=>renderTable(c,ctx),
+  Timeline:(c,ctx)=>renderTimeline(c,ctx),
+  ApprovalCard:(c,ctx)=>renderApproval(c,ctx),
+};
+
+function field(c,mk){const wrap=$("label","field");if(c.label){const l=$("span","lb");l.append(text(c.label));wrap.append(l);}wrap.append(mk());return wrap;}
+
+function kids(c,ctx,e){ for(const id of (c.children||[])){ const child=ctx.byId[id]; if(child) e.append(renderComponent(child,ctx)); } }
+function renderComponent(c,ctx){ const r=RENDERERS[c.type]; if(!r){ const s=$("div");s.style.cssText="color:var(--red-ink);font-family:var(--font-mono);font-size:11px";s.append(text("[skipped unknown type: "+c.type+"]"));return s;} return r(c,ctx); }
+
+function sparkSvg(vals,tone){const w=180,h=44,max=Math.max(...vals,1),min=Math.min(...vals,0);const rng=(max-min)||1;
+  const pts=vals.map((v,i)=>`${i/(vals.length-1||1)*w},${h-6-(v-min)/rng*(h-12)}`).join(" ");
+  const col=({good:"var(--green)",warn:"var(--amber)",bad:"var(--red)"}[tone]||"var(--accent)");
+  const ns="http://www.w3.org/2000/svg";const svg=document.createElementNS(ns,"svg");svg.setAttribute("viewBox",`0 0 ${w} ${h}`);svg.setAttribute("width","100%");svg.setAttribute("height",h);
+  const pl=document.createElementNS(ns,"polyline");pl.setAttribute("points",pts);pl.setAttribute("fill","none");pl.setAttribute("stroke",col);pl.setAttribute("stroke-width","2.5");svg.append(pl);return svg;}
+
+function barSvg(data,xk,yk,unit){const ns="http://www.w3.org/2000/svg";const w=300,h=150,pad=24;
+  const max=Math.max(...data.map(d=>+d[yk]),1);const bw=(w-pad*2)/data.length*.62;
+  const svg=document.createElementNS(ns,"svg");svg.setAttribute("viewBox",`0 0 ${w} ${h}`);svg.setAttribute("width","100%");svg.setAttribute("height","auto");
+  data.forEach((d,i)=>{const x=pad+i*((w-pad*2)/data.length)+((w-pad*2)/data.length-bw)/2;const bh=(+d[yk])/max*(h-pad*2);
+    const r=document.createElementNS(ns,"rect");r.setAttribute("x",x);r.setAttribute("y",h-pad-bh);r.setAttribute("width",bw);r.setAttribute("height",bh);r.setAttribute("rx",3);r.setAttribute("fill","var(--accent)");svg.append(r);
+    const tv=document.createElementNS(ns,"text");tv.setAttribute("x",x+bw/2);tv.setAttribute("y",h-pad-bh-4);tv.setAttribute("text-anchor","middle");tv.setAttribute("font-size","10");tv.setAttribute("font-family","var(--font-mono)");tv.setAttribute("fill","var(--ink-muted)");tv.textContent=d[yk];svg.append(tv);
+    const tl=document.createElementNS(ns,"text");tl.setAttribute("x",x+bw/2);tl.setAttribute("y",h-8);tl.setAttribute("text-anchor","middle");tl.setAttribute("font-size","10");tl.setAttribute("font-family","var(--font-mono)");tl.setAttribute("fill","var(--ink-muted)");tl.textContent=d[xk];svg.append(tl);});
+  return svg;}
+
+function renderTable(c,ctx){const wrap=$("div");const cols=(c.columns||"").split(",").map(s=>s.trim());let rows=(resolve(c.rows,ctx.dm)||[]).slice();
+  if(c.filterKey){const f=$("input","filter");f.placeholder="filter "+c.filterKey+"…";f.oninput=()=>draw(f.value);wrap.append(f);}
+  const t=$("table");wrap.append(t);let sortCol=null,sortDir=1;
+  function draw(filter){t.textContent="";const tr=$("tr");cols.forEach(col=>{const th=$("th");th.append(text(col));th.onclick=()=>{sortDir=sortCol===col?-sortDir:1;sortCol=col;draw(filter);};if(c.sortable&&sortCol===col)th.append(text(sortDir>0?" ▲":" ▼"));tr.append(th);});t.append(tr);
+    let view=rows;if(filter)view=view.filter(r=>String(r[c.filterKey]||"").toLowerCase().includes(filter.toLowerCase()));
+    if(sortCol)view=view.slice().sort((a,b)=>{const x=a[sortCol],y=b[sortCol];return(x>y?1:x<y?-1:0)*sortDir;});
+    view.forEach(r=>{const rr=$("tr");cols.forEach(col=>{const td=$("td");td.append(text(r[col]));rr.append(td);});t.append(rr);});}
+  draw("");return wrap;}
+
+function renderTabs(c,ctx){const wrap=$("div");const nav=$("div","tabs");wrap.append(nav);const body=$("div");wrap.append(body);
+  // A2UI Basic Tabs: each child IS a panel; `labels` names the tabs (comma list).
+  const panels=(c.children||[]).map(id=>ctx.byId[id]).filter(Boolean);
+  const labels=(c.labels||"").split(",").map(s=>s.trim());
+  function show(i){body.textContent="";[...nav.children].forEach((b,j)=>b.classList.toggle("on",i===j));const p=panels[i];if(p)body.append(renderComponent(p,ctx));}
+  panels.forEach((p,i)=>{const b=$("button");b.append(text(labels[i]||("tab "+(i+1))));b.onclick=()=>show(i);nav.append(b);});
+  if(panels.length)show(0);return wrap;}
+
+function renderTimeline(c,ctx){const e=$("div","chart");const t=$("div","ct");t.append(text(c.title||"timeline"));e.append(t);
+  // Accepts either the showcase {seq,kind,node} or the compose {time,label} shape.
+  const box=$("div","tl");(resolve(c.events,ctx.dm)||[]).forEach(ev=>{const r=$("div","r");
+    const s=$("span","s");s.append(text(String(ev.seq!=null?ev.seq:(ev.time!=null?ev.time:"")).padStart(2)));
+    const k=$("span","k");k.append(text(ev.kind!=null?ev.kind:(ev.label!=null?ev.label:"")));
+    const n=$("span","n");n.append(text(ev.node!=null?ev.node:""));r.append(s,k,n);box.append(r);});e.append(box);return e;}
+
+function renderApproval(c,ctx){const e=$("div","Approval");const sm=$("div","sm");sm.append(text(resolve(c.summary,ctx.dm)));
+  const pre=$("pre");pre.append(text(JSON.stringify(resolve(c.params,ctx.dm),null,2)));const btns=$("div","btns");
+  const ok=$("button","ok");ok.append(text("Approve"));ok.onclick=()=>emitAction("approve",resolve(c.params,ctx.dm));
+  const no=$("button");no.append(text("Reject"));no.onclick=()=>emitAction("reject",{});btns.append(ok,no);e.append(sm,pre,btns);return e;}
+
+function emitAction(name,args){ // the only way the surface changes the world: a named, validated event
+  document.getElementById("meta").textContent = "action emitted → "+name+" "+JSON.stringify(args);
+}
+
+function render(surface){const byId={};surface.components.forEach(c=>byId[c.id]=c);const ctx={byId,dm:surface.dataModel||{}};
+  const mount=document.getElementById("mount");mount.textContent="";mount.append(renderComponent(byId[surface.root],ctx));}
+
+// ---- AG-UI live state channel, with STATE_SNAPSHOT reconnect ---------------
+// The client folds STATE_DELTA events into a data model exactly as the server
+// does. If the stream drops mid-run it reconnects with ?reconnect=1; the server
+// then leads with ONE STATE_SNAPSHOT carrying the COMPLETE data model, and the
+// client rebuilds from that single frame instead of replaying every delta.
+// State is data: it is only ever shown through text nodes, never as markup.
+function emptyState(){ return { results:{}, patches:[] }; }
+function applyDelta(state, ev){ // mirror of the server reducer
+  const d = ev && ev.delta; if(!d) return state;
+  if(d.op==="add" && typeof d.path==="string" && d.path.indexOf("/results/")===0){
+    state.results[d.path.slice("/results/".length)] = d.value;
+  } else if(d.op==="graph_patched"){
+    state.patches.push({reason:d.reason||"", trigger:d.trigger});
+  }
+  return state;
+}
+function showLive(state, note){
+  const n = Object.keys(state.results).length, p = state.patches.length;
+  document.getElementById("live").textContent =
+    (note?note+" · ":"") + n + " results · " + p + " patches folded";
+}
+
+function openStream(){
+  let state = emptyState();
+  let rebuiltFromSnapshot = false;
+  let done = false;
+  let reconnected = false;
+
+  function connect(reconnect){
+    const url = `/v1/runs/${RUN}/events` + (reconnect ? "?reconnect=1" : "");
+    const es = new EventSource(url);
+    es.onmessage = (m) => {
+      let ev; try { ev = JSON.parse(m.data); } catch(_) { return; }
+      if(ev.type==="STATE_SNAPSHOT"){
+        // Rebuild the whole data model from this one frame — do NOT replay deltas.
+        state = ev.state && typeof ev.state==="object" ? ev.state : emptyState();
+        state.results = state.results || {}; state.patches = state.patches || [];
+        rebuiltFromSnapshot = true;
+        showLive(state, "rebuilt from snapshot");
+        return;
+      }
+      if(ev.type==="RUN_FINISHED"){ done = true; showLive(state, done?"run finished":""); es.close(); return; }
+      // After a snapshot rebuild we are already whole; replayed deltas are not
+      // re-folded (the snapshot is authoritative for the history it covers).
+      if(!rebuiltFromSnapshot) applyDelta(state, ev);
+      showLive(state, reconnected?"reconnected":"");
+    };
+    es.onerror = () => {
+      es.close();
+      if(done || reconnected) return;      // clean end, or already recovered
+      reconnected = true;                  // a real mid-run drop: recover via snapshot
+      connect(true);
+    };
+  }
+  connect(false);
+}
+
+async function boot(){
+  const res = await fetch(`/v1/runs/${RUN}/surface`);const data = await res.json();
+  document.getElementById("badge").textContent = (data.clean===false?"UNSAFE":"safe · "+ (data.component_count||data.surface.components.length) +" components · 0 executable");
+  document.getElementById("meta").textContent = "declarative surface rendered natively";
+  render(data.surface);
+  openStream();  // fold the AG-UI state live; recover a dropped stream via STATE_SNAPSHOT
+}
+boot().catch(e=>{document.getElementById("badge").textContent="error";document.getElementById("meta").textContent=String(e);});
+</script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+.env
+.env.*
+!.env.example
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.sqlite
+*.sqlite3
+*.db
+proofs/out/
+.DS_Store
+
+# Third-party single-file apps: we do not redistribute Bento's player.
+*.bento.html
+# Local run stores and scratch workspaces. Anchored to the repo root so it
+# does not swallow proofs/runs/, which is evidence rather than scratch.
+/.s17/
+/runs/

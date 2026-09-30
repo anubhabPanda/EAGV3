@@ -1,0 +1,27 @@
+# A mixed task set for p1. THIS FILE IS DATA — replace it wholesale.
+#
+# One JSON object per line: {"id", "task", "expectation", "difficulty"}. Only
+# "task" is required. "expectation" is a short natural-language success criterion
+# the generic rubric scores against; it is NOT an answer key the code matches on,
+# and no s17code module reads it for anything but the judge prompt. "difficulty"
+# is a free-form label used only to group p1's report — nothing branches on it.
+#
+# The set deliberately spans difficulty so cost-per-resolved-task can differ from
+# cost-per-call at all: if every task is trivial the cheapest rung resolves
+# everything and there is nothing to measure. Every task is self-contained, needs
+# no tool or web access, and has a checkable result.
+#
+#   python proofs/p1_cost_per_task.py --tasks proofs/tasks/mixed.jsonl --principal you/p1
+#   python proofs/p1_cost_per_task.py --tasks /path/to/your/own.jsonl --principal you/p1
+{"id": "t01_capital", "difficulty": "trivial", "task": "What is the capital city of Australia? Reply with the city name only.", "expectation": "Names Canberra, and does not name Sydney or Melbourne as the capital."}
+{"id": "t02_convert", "difficulty": "trivial", "task": "Convert 2.5 kilometres into metres. Give the number and the unit.", "expectation": "States 2500 metres."}
+{"id": "t03_alphabetise", "difficulty": "trivial", "task": "Put these words into alphabetical order and return them on one line, comma-separated: pear, apple, fig, cherry, banana.", "expectation": "Returns exactly apple, banana, cherry, fig, pear in that order."}
+{"id": "t04_dates", "difficulty": "moderate", "task": "A project starts on Tuesday 3 March 2026 and runs for 45 calendar days, counting the start day as day 1. On what calendar date does it end, and what weekday is that?", "expectation": "States 16 April 2026 and identifies it as a Thursday."}
+{"id": "t05_strict_json", "difficulty": "moderate", "task": "Return a single JSON object, and nothing else, with exactly three keys: \"name\" set to the string \"edge-proxy\", \"ports\" set to an array holding the two integers 8080 and 8443 in that order, and \"tls\" set to boolean true.", "expectation": "Output is one JSON object with exactly those three keys, ports as [8080, 8443] and tls as the boolean true, with no extra keys and no surrounding prose."}
+{"id": "t06_primes", "difficulty": "moderate", "task": "List the first six prime numbers greater than 50, in ascending order, comma-separated.", "expectation": "Lists 53, 59, 61, 67, 71, 73 and nothing else."}
+{"id": "t07_dilution", "difficulty": "hard", "task": "A tank holds 240 litres of a 15% salt solution. How many litres must be drained off and replaced with pure water so that the tank again holds 240 litres, now at 9% salt? Give the number of litres.", "expectation": "Arrives at 96 litres."}
+{"id": "t08_seating", "difficulty": "hard", "task": "Five houses stand in a row, numbered 1 to 5 from left to right, each occupied by exactly one of Ann, Ben, Cara, Dan and Eve. Ann is not in house 1 or house 5. Ben is immediately to the right of Ann. Cara is in house 5. Dan is somewhere to the left of Ann. Eve is in house 1. State which house each person occupies.", "expectation": "Assigns Eve to house 1, Dan to house 2, Ann to house 3, Ben to house 4 and Cara to house 5."}
+{"id": "t09_avg_speed", "difficulty": "hard", "task": "A cyclist rides 30 km out at 20 km/h and returns along the same 30 km at 30 km/h. What is the average speed for the whole round trip, in km/h? Give one number.", "expectation": "Gives 24 km/h. An answer of 25 km/h averages the two speeds instead of dividing total distance by total time and fails."}
+{"id": "t10_probability", "difficulty": "hard", "task": "A bag holds 3 red marbles and 5 blue marbles. Two marbles are drawn at random without replacement. What is the probability that both drawn marbles are the same colour? Give an exact fraction in lowest terms.", "expectation": "Gives 13/28."}
+{"id": "t11_billing", "difficulty": "hard", "task": "A provider bills $0.30 per million input tokens and $2.40 per million output tokens. A job makes 1,250 calls, and each call uses 4,800 input tokens and 900 output tokens. What is the total bill in US dollars, to the nearest cent?", "expectation": "Gives $4.50, or equivalently 4.50 US dollars."}
+{"id": "t12_tradeoff", "difficulty": "hard", "task": "A team must choose between routing every request to one large expensive model, or routing every request to a small cheap model that is automatically retried when its output is rejected. In at most 150 words: explain why the second option can cost more per completed request than the first, name the single metric that reveals this, and state one condition under which the second option genuinely is cheaper.", "expectation": "Explains that retries multiply the number of calls so a lower price per call can still produce a higher total per completed request; names cost per completed (or resolved) task as the revealing metric rather than cost per call or per token; and gives at least one concrete condition, such as a high enough first-attempt success rate on that class of request, under which the cheap route genuinely wins. Stays within roughly 150 words."}

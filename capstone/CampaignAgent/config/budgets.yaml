@@ -1,0 +1,45 @@
+# Budget policy. Every threshold the controller uses lives here.
+#
+# A budget is handed to a run as an amount plus a principal (tenant/project/user/
+# agent — whatever string the caller attributes spend to). The controller is
+# deterministic code, not a prompt: token elasticity means a model asked nicely
+# to stay under a ceiling will sail straight through it.
+
+# Used when a caller asks for a budgeted run without naming an amount.
+default_budget: 0.05
+
+# Fraction of the run's allowance held back from frontier allocation so the
+# terminal node (the one that actually answers) is never starved by its own
+# upstream work.
+reserve_fraction: 0.20
+
+# Spend ratio (spent / total) at or above which a node's requested tier is
+# downgraded one rung at a time down the ladder in tiers.yaml.
+downgrade_at: 0.50
+
+# Spend ratio at or above which no further call is admitted at any tier.
+refuse_at: 0.90
+
+# A projected call must leave at least this much of the run allowance unspent,
+# as a fraction of the total. Stops the last call from landing exactly on zero.
+headroom_fraction: 0.02
+
+# Admission prices the WORST case, not a guess: output is bounded by the tier's
+# max_tokens and input by the prompt actually being sent. These two numbers turn
+# the prompt into a token count — roughly four characters per token, then a safety
+# factor because a provider's tokeniser is not ours.
+chars_per_token: 4
+input_estimate_safety: 1.25
+
+# Hard ceiling on admitted calls per run. Denial-of-wallet defence that does not
+# depend on price estimates being right.
+max_calls_per_run: 60
+
+# Hard ceiling on admitted calls attributable to one graph node, so a single
+# retrying node cannot spin.
+max_calls_per_node: 6
+
+# Optional per-principal allowance overrides. A principal named here gets this
+# ceiling regardless of what the caller asked for, whichever is smaller.
+principals: {}
+  # example-tenant/example-project: 0.02

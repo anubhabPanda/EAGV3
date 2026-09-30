@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arcturus - Developer Tool</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 2em;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .theme-toggle-container {
+            margin-bottom: 1em;
+        }
+        .dark-theme {
+            background-color: #1a1a1a;
+            color: #f0f0f0;
+        }
+        .light-theme {
+            background-color: #f0f0f0;
+            color: #1a1a1a;
+        }
+    </style>
+</head>
+<body class="light-theme">
+    <div class="theme-toggle-container">
+        <button id="theme-toggle">Toggle Theme</button>
+    </div>
+    <h1>Welcome to Arcturus</h1>
+    <p>Arcturus is a powerful developer tool designed to streamline your workflow and enhance productivity. With its intuitive interface and robust features, you can focus on what matters most: building great software.</p>
+    <p>Whether you're a seasoned professional or just starting, Arcturus provides the insights and control you need to navigate complex projects with ease. Explore its capabilities and transform your development experience today.</p>
+
+    <script>
+        const themeToggle = document.getElementById('theme-toggle');
+        const body = document.body;
+        const DARK_THEME_CLASS = 'dark-theme';
+        const LIGHT_THEME_CLASS = 'light-theme';
+        const THEME_STORAGE_KEY = 'arcturus-theme';
+
+        // Function to apply theme
+        function applyTheme(theme) {
+            if (theme === 'dark') {
+                body.classList.remove(LIGHT_THEME_CLASS);
+                body.classList.add(DARK_THEME_CLASS);
+            } else {
+                body.classList.remove(DARK_THEME_CLASS);
+                body.classList.add(LIGHT_THEME_CLASS);
+            }
+        }
+
+        // Load theme from localStorage on page load
+        try {
+            const storedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+            if (storedTheme) {
+                applyTheme(storedTheme);
+            } else {
+                // Default to light theme if no preference is stored
+                applyTheme('light');
+            }
+        } catch (e) {
+            console.warn('localStorage is not available or threw an error:', e);
+            // Fallback to default light theme if localStorage fails
+            applyTheme('light');
+        }
+
+        // Toggle theme on button click
+        themeToggle.addEventListener('click', () => {
+            let currentTheme = body.classList.contains(DARK_THEME_CLASS) ? 'dark' : 'light';
+            let newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            applyTheme(newTheme);
+            try {
+                localStorage.setItem(THEME_STORAGE_KEY, newTheme);
+            } catch (e) {
+                console.warn('Failed to save theme to localStorage:', e);
+            }
+        });
+    </script>
+</body>
+</html>

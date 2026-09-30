@@ -1,0 +1,127 @@
+# Capability tiers.
+#
+# A tier is a NAME plus the gateway request fields that name expands to. Nothing
+# in sourcecode knows any of these names, providers or models: add a tier, rename a
+# tier, or repoint one at a different provider entirely by editing this file.
+#
+# `order` is the ladder, cheapest first. `policy.py` walks it downwards when the
+# run is under budget pressure, so the order is the only thing that defines what
+# "downgrade" means.
+
+order: [economy, standard, frontier]
+default_tier: standard
+
+# ── The ladder is CROSS-MODEL ────────────────────────────────────────────────
+# The first version of this file varied reasoning effort and the output ceiling
+# on ONE model. The arithmetic worked — output is billed 6x input, so capping
+# max_tokens does cap spend — but it made "model routing" only half-true: every
+# rung of the ladder was the same model, so a downgrade could never be a change
+# of model, only a change of how hard that one model was allowed to think.
+#
+# Each rung below is a DIFFERENT model on a DIFFERENT provider, and the three
+# were measured against glc_v4 on 2026-07-30 before being written down. One
+# identical 3-sentence prompt, max_tokens 512, temperature 0, reasoning off:
+#
+#   rung      provider    model                    $/Mtok in/out  latency  answered
+#   economy   groq        openai/gpt-oss-120b      0.15 / 0.75    0.74 s   yes
+#   standard  gemini      gemini-3.1-flash-lite    0.25 / 1.50    1.24 s   yes
+#   frontier  github      openai/gpt-4.1           2.00 / 8.00    2.88 s   yes
+#
+# Input rate, output rate and latency all rise monotonically along the ladder,
+# which is what makes "one rung down" unambiguous. Projected worst-case cost per
+# call (the number admission actually uses) is $0.000564 / $0.002161 / $0.044768
+# — a 79x spread across the ladder, where the same-model ladder managed 5x.
+#
+# Two facts worth keeping, both learned the hard way:
+#
+#   `reasoning: "off"` is not decoration on the cheap rung. gpt-oss-120b thinks
+#   by default: at max_tokens 128 with the dial left alone it spent all 128
+#   output tokens in its reasoning channel and returned content "" — a fully
+#   billed non-answer. The same call with the dial off returned a 570-character
+#   answer in 117 tokens. glc_v4's providers.py now translates "off" into the
+#   dialect each server understands; the tier only has to ask.
+#
+#   The cheapest rung is deliberately NOT free. This gateway can also reach
+#   ollama/gemma4:31b and openrouter's nvidia/nemotron-3-super-120b-a12b:free at
+#   $0.00/Mtok, and either would be a legitimate rung — but a rung that costs
+#   nothing cannot be exhausted by a dollar ceiling, so "refuse at exhaustion"
+#   stops being expressible in dollars and falls entirely to max_calls_per_run.
+#   A free rung wants a call-count budget, not a money budget. Local weights are
+#   also slow: gemma4:31b took 39.6 s (and 86.4 s under load) for the same
+#   prompt the frontier rung answered in 2.9 s, so the cheapest rung on a price
+#   ladder is not the cheapest rung on a latency ladder.
+
+tiers:
+  economy:
+    # Every key under `request` is merged verbatim into the gateway's /v1/chat
+    # body. That is the whole tier -> provider mapping: no Python edit needed to
+    # change a provider, a model, a reasoning effort or a token ceiling.
+    request:
+      provider: groq
+      model: openai/gpt-oss-120b
+      reasoning: "off"
+      max_tokens: 512
+      temperature: 0
+    # Which row of pricing.yaml this tier is billed against. Defaults to the
+    # request model when omitted.
+    price_model: openai/gpt-oss-120b
+    # What the estimator assumes before the call returns, in tokens. Real usage
+    # replaces this the moment the response lands.
+    projected_input_tokens: 1200
+    projected_output_tokens: 400
+
+  standard:
+    request:
+      provider: gemini
+      model: gemini-3.1-flash-lite
+      reasoning: "off"
+      max_tokens: 1024
+      temperature: 0
+    price_model: gemini-3.1-flash-lite
+    projected_input_tokens: 2500
+    projected_output_tokens: 800
+
+  frontier:
+    request:
+      provider: github
+      model: openai/gpt-4.1
+      # gpt-4.1 has no thinking channel to switch off, so the dial is left
+      # alone here rather than sent and ignored.
+      max_tokens: 4096
+      temperature: 0
+    price_model: openai/gpt-4.1
+    projected_input_tokens: 6000
+    projected_output_tokens: 2000
+
+# Which tier a graph ROLE asks for. Keys are the runtime's own skill/role names
+# (never task content), so a node "declares the tier it needs" by declaring its
+# role. `default` covers every role not listed.
+role_tiers:
+  default: standard
+  planner: frontier
+  memory_recall: economy
+  remember_explicit_fact: economy
+  web_search: economy
+  fetch_url: economy
+  index_file: economy
+  list_directory: economy
+  read_file: economy
+  write_file: economy
+  copy_file: economy
+  file_sha256: economy
+  verify_artifact: economy
+  calculate: economy
+  query_csv: economy
+  current_datetime: economy
+  date_shift: economy
+  create_calendar_events: economy
+  a2a_delegate: economy
+  researcher: economy
+  retriever: economy
+  summariser: economy
+  formatter: economy
+  distiller: standard
+  content: standard
+  coder_validator: standard
+  compose_surface: standard
+  answer_with_evidence: frontier

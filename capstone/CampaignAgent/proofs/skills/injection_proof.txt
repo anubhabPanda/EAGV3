@@ -1,0 +1,42 @@
+{
+  "skills_discovered": [
+    "house-style",
+    "python-bugfix",
+    "web-pages"
+  ],
+  "errors": [],
+  "rows": [
+    {
+      "goal": "Build index.html: a landing page for a developer tool called Arcturus.",
+      "skills": [
+        "house-style",
+        "web-pages"
+      ],
+      "system_chars_off": 1328,
+      "system_chars_on": 3368,
+      "mentions_webcheck_off": false,
+      "mentions_webcheck_on": true
+    },
+    {
+      "goal": "fix the failing pytest in tests/test_login.py",
+      "skills": [
+        "house-style",
+        "python-bugfix"
+      ],
+      "system_chars_off": 1328,
+      "system_chars_on": 3205,
+      "mentions_webcheck_off": false,
+      "mentions_webcheck_on": false
+    },
+    {
+      "goal": "rename a variable in runtime.py",
+      "skills": [
+        "house-style"
+      ],
+      "system_chars_off": 1328,
+      "system_chars_on": 2193,
+      "mentions_webcheck_off": false,
+      "mentions_webcheck_on": false
+    }
+  ]
+}

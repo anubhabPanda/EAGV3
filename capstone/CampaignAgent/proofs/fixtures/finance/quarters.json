@@ -1,0 +1,9 @@
+{
+  "currency": "INR_lakh",
+  "quarters": [
+    {"quarter": "Q1", "revenue": 120, "cost": 78},
+    {"quarter": "Q2", "revenue": 138, "cost": 86},
+    {"quarter": "Q3", "revenue": 129, "cost": 91},
+    {"quarter": "Q4", "revenue": 162, "cost": 99}
+  ]
+}

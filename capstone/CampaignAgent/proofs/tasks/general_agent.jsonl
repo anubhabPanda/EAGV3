@@ -1,0 +1,3 @@
+{"id":"language_comparison","prompt":"Research Rust and Go independently, then compare their concurrency models. Explain one situation where each is the safer choice."}
+{"id":"travel_weather_paraphrase","prompt":"Plan a kid-friendly Saturday in Kyoto and account for the expected weather. Give me three options and choose the best fit."}
+{"id":"procurement_unseen","prompt":"Find three laptops sold in India under ₹75,000 that suit local LLM experimentation. Compare RAM, GPU or NPU capability, independent review evidence, and warranty terms; flag anything you cannot verify."}
