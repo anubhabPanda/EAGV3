@@ -19,6 +19,7 @@ dependencies = [
     "opentelemetry-exporter-otlp>=1.27",
     "ddgs>=9,<10",
     "networkx>=3.6,<4",
+    "fastmcp>=4.0.10",
 ]
 
 [dependency-groups]

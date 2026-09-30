@@ -45,6 +45,7 @@ from functools import partial
 
 from sourcecode.planner import GeneralAgentPlanner
 from sourcecode.workers import RunContext
+from sourcecode.workers import campaign as campaign_workers
 from sourcecode.workers import coding as coding_workers
 from sourcecode.ui import compose as ui_compose
 from sourcecode.workers import general
@@ -73,6 +74,40 @@ from sourcecode.tools import (
 
 TextLLM = Callable[[str, str], Awaitable[dict[str, Any]]]
 Skill = Callable[[TaskSpec], Awaitable[dict[str, Any] | Deferred]]
+
+# Every campaign/subscriber capability, bound to the worker that shapes its
+# call and the exact MCP tool it invokes. One row here plus one declaration in
+# capabilities.py is the whole cost of exposing another MCP tool.
+CAMPAIGN_TOOL_BINDINGS: dict[str, tuple[Skill, str]] = {
+    "list_email_campaigns": (campaign_workers.run_list, "EmailCampaign.list"),
+    "get_email_campaign": (campaign_workers.run_get, "EmailCampaign.get"),
+    "create_email_campaign": (campaign_workers.run_create, "EmailCampaign.create"),
+    "update_email_campaign": (campaign_workers.run_update, "EmailCampaign.update"),
+    "delete_email_campaign": (campaign_workers.run_delete, "EmailCampaign.delete"),
+    "schedule_email_campaign": (campaign_workers.run_transition, "EmailCampaign.schedule"),
+    "cancel_scheduled_email_campaign": (campaign_workers.run_transition, "EmailCampaign.cancel.scheduled.cancelled"),
+    "pause_email_campaign": (campaign_workers.run_transition, "EmailCampaign.pause"),
+    "cancel_paused_email_campaign": (campaign_workers.run_transition, "EmailCampaign.cancel.paused.cancelled"),
+    "save_email_campaign_draft": (campaign_workers.run_transition, "EmailCampaign.save_draft"),
+    "list_campaign_audiences": (campaign_workers.run_list, "CampaignAudience.list"),
+    "get_campaign_audience": (campaign_workers.run_get, "CampaignAudience.get"),
+    "preview_campaign_audience": (campaign_workers.run_preview, "endpoint.crm.campaign_audiences.preview"),
+    "list_crm_campaign_audiences": (campaign_workers.run_list, "endpoint.crm.campaign_audiences"),
+    "list_campaign_links": (campaign_workers.run_list, "CampaignLink.list"),
+    "get_campaign_link": (campaign_workers.run_get, "CampaignLink.get"),
+    "list_campaign_recipients": (campaign_workers.run_list, "CampaignRecipient.list"),
+    "get_campaign_recipient": (campaign_workers.run_get, "CampaignRecipient.get"),
+    "list_subscribers": (campaign_workers.run_list, "Subscriber.list"),
+    "get_subscriber": (campaign_workers.run_get, "Subscriber.get"),
+    "create_subscriber": (campaign_workers.run_create, "Subscriber.create"),
+    "update_subscriber": (campaign_workers.run_update, "Subscriber.update"),
+    "delete_subscriber": (campaign_workers.run_delete, "Subscriber.delete"),
+    "list_subscriber_lists": (campaign_workers.run_list, "SubscriberList.list"),
+    "get_subscriber_list": (campaign_workers.run_get, "SubscriberList.get"),
+    "create_subscriber_list": (campaign_workers.run_create, "SubscriberList.create"),
+    "update_subscriber_list": (campaign_workers.run_update, "SubscriberList.update"),
+    "list_public_subscriber_lists": (campaign_workers.run_public, "endpoint.email.public.subscriber_lists"),
+}
 
 
 def principal_for(scope: MemoryScope) -> str:
@@ -397,6 +432,8 @@ class AgentRuntime:
             unavailable |= registry.family("coding")
         if self._skills() is None:
             unavailable |= {"load_skill"}
+        if not (os.getenv("S17_MCP_URL") and os.getenv("S17_MCP_TOKEN")):
+            unavailable |= set(CAMPAIGN_TOOL_BINDINGS)
 
         async def planning_llm(planning_prompt: str, system: str) -> dict[str, Any]:
             """The planner is a first-class metered model call, never a free seam."""
@@ -461,6 +498,7 @@ class AgentRuntime:
             "grep_code": partial(coding_workers.grep_code_worker, ctx), "run_command": partial(coding_workers.run_command_worker, ctx),
             "git_diff": partial(coding_workers.git_diff_worker, ctx), "git_reset": partial(coding_workers.git_reset_worker, ctx),
             "validate_work": partial(special.run_validate_work, ctx), **role_workers,
+            **{name: partial(worker, ctx, tool) for name, (worker, tool) in CAMPAIGN_TOOL_BINDINGS.items()},
         }
         def idempotent(name: str, worker: Skill) -> Skill:
             # ``formatter`` remains an internal role alias for older S15 tier

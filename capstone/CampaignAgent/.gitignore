@@ -20,3 +20,4 @@ proofs/out/
 # does not swallow proofs/runs/, which is evidence rather than scratch.
 /.s17/
 /runs/
+.tmpstate*
